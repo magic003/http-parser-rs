@@ -1,6 +1,7 @@
 #![warn(experimental)]
 
 mod error;
+mod state;
 
 pub enum HttpParserType {
     HttpRequest,
@@ -11,6 +12,7 @@ pub enum HttpParserType {
 pub struct HttpParser {
     tp : HttpParserType,
     errno : error::HttpErrno,
+    state : state::State,
 }
 
 pub trait HttpParserCallback {
@@ -47,7 +49,12 @@ impl<T: HttpParserCallback> HttpParser {
     pub fn new(tp : HttpParserType) -> HttpParser {
         HttpParser { 
             tp : tp,  
-            errno : error::HttpErrno::Ok,
+            errno : error::Ok,
+            state : match tp {
+                        HttpRequest     => state::StartReq,
+                        HttpResponse    => state::StartRes,
+                        HttpBoth        => state::StartReqOrRes,
+                    },
         }
     }
 
