@@ -58,7 +58,14 @@ impl<T: HttpParserCallback> HttpParser {
         }
     }
 
-    pub fn execute(&self, cb : T) -> int {
-        0
+    pub fn execute(&self, cb : T, data : &[u8]) -> int {
+        if self.errno == error::Ok {
+            return 0i;
+        }
+
+        if data.len() == 0 {
+
+        }
+        0i
     }
 }

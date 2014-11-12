@@ -1,3 +1,4 @@
+#[deriving(PartialEq, Eq)]
 pub enum HttpErrno {
     // No error
     Ok,
