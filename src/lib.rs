@@ -1,5 +1,7 @@
 #![warn(experimental)]
 
+mod error;
+
 pub enum HttpParserType {
     HttpRequest,
     HttpResponse,
@@ -8,6 +10,7 @@ pub enum HttpParserType {
 
 pub struct HttpParser {
     tp : HttpParserType,
+    errno : error::HttpErrno,
 }
 
 pub trait HttpParserCallback {
@@ -42,7 +45,10 @@ pub trait HttpParserCallback {
 
 impl<T: HttpParserCallback> HttpParser {
     pub fn new(tp : HttpParserType) -> HttpParser {
-        HttpParser { tp : tp }
+        HttpParser { 
+            tp : tp,  
+            errno : error::HttpErrno::Ok,
+        }
     }
 
     pub fn execute(&self, cb : T) -> int {
