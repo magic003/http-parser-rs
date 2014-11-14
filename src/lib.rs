@@ -58,14 +58,65 @@ impl<T: HttpParserCallback> HttpParser {
         }
     }
 
-    pub fn execute(&self, cb : T, data : &[u8]) -> int {
+    pub fn execute(&mut self, cb : T, data : &[u8]) -> int {
+        let mut count = 0;
+        let mut header_field_mark = 0u8;
+        let mut header_value_mark = 0u8;
+        let mut url_mark = 0u8;
+        let mut status_mark = 0u8;
+
         if self.errno == error::Ok {
-            return 0i;
+            return 0;
         }
 
-        if data.len() == 0 {
+        if data.len() == 0 {    // mean EOF
+            match self.state {
+                state::BodyIdentityEof => {
+                    assert!(self.errno == error::Ok);
+                    match cb.on_message_complete() {
+                        Err(..) => self.errno = error::CBMessageComplete,
+                        _ => (),
+                    }
 
+                    if self.errno == error::Ok {
+                        return count;
+                    }
+                    return 0;
+                },
+                state::Dead | 
+                state::StartReqOrRes | 
+                state::StartReq | 
+                state::StartRes => {
+                    return 0;
+                }
+                _ => {
+                   self.errno = error::InvalidEofState;
+                   return 1;
+                }
+            }
         }
-        0i
+
+        if self.state == state::HeaderField {
+            header_field_mark = 1;
+        }
+        if self.state == state::HeaderValue {
+            header_value_mark = 1;
+        }
+        match self.state {
+            state::ReqPath |
+            state::ReqSchema |
+            state::ReqSchemaSlash |
+            state::ReqSchemaSlashSlash |
+            state::ReqServerStart |
+            state::ReqServer |
+            state::ReqServerWithAt |
+            state::ReqQueryStringStart |
+            state::ReqQueryString |
+            state::ReqFragmentStart |
+            state::ReqFragment => url_mark = 1,
+            state::ResStatus => status_mark = 1,
+            _ => (),
+        }
+        0
     }
 }

@@ -1,3 +1,4 @@
+#[deriving(PartialEq, Eq)]
 pub enum State {
     Dead,
 
