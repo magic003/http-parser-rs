@@ -1,4 +1,5 @@
 #![warn(experimental)]
+#![feature(macro_rules)]
 
 mod error;
 mod state;
@@ -10,9 +11,13 @@ pub enum HttpParserType {
 }
 
 pub struct HttpParser {
+    // private
     tp : HttpParserType,
-    errno : error::HttpErrno,
     state : state::State,
+    nread : u32,            // bytes read in various scenarios
+    
+    // read-only
+    errno : error::HttpErrno,
 }
 
 pub trait HttpParserCallback {
@@ -45,21 +50,32 @@ pub trait HttpParserCallback {
     }
 }
 
+const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
+
+macro_rules! unknown_error(
+    ($parser:ident) => (
+        if $parser.errno == error::Ok {
+            $parser.errno = error::Unknown;
+        }
+    );
+)
+
 impl<T: HttpParserCallback> HttpParser {
     pub fn new(tp : HttpParserType) -> HttpParser {
         HttpParser { 
             tp : tp,  
-            errno : error::Ok,
             state : match tp {
                         HttpRequest     => state::StartReq,
                         HttpResponse    => state::StartRes,
                         HttpBoth        => state::StartReqOrRes,
                     },
+            nread : 0,
+            errno : error::Ok,
         }
     }
 
     pub fn execute(&mut self, cb : T, data : &[u8]) -> int {
-        let mut count = 0;
+        let mut index = 0;
         let mut header_field_mark = 0u8;
         let mut header_value_mark = 0u8;
         let mut url_mark = 0u8;
@@ -79,7 +95,7 @@ impl<T: HttpParserCallback> HttpParser {
                     }
 
                     if self.errno == error::Ok {
-                        return count;
+                        return index;
                     }
                     return 0;
                 },
@@ -116,6 +132,36 @@ impl<T: HttpParserCallback> HttpParser {
             state::ReqFragment => url_mark = 1,
             state::ResStatus => status_mark = 1,
             _ => (),
+        }
+
+        for ch in data.iter() {
+            if (self.state <= state::HeadersDone) {
+                self.nread += 1;
+
+                // From http_parser.c
+
+                // Don't allow the total size of the HTTP headers (including the status
+                // line) to exceed HTTP_MAX_HEADER_SIZE. This check is here to protect
+                // embedders against denial-of-service attacks where the attacker feeds
+                // us a never-ending header that the embedder keeps buffering.
+                // 
+                // This check is arguably the responsibility of embedders but we're doing
+                // it on the embedder's behalf because most won't bother and this way we
+                // make the web a little safer. HTTP_MAX_HEADER_SIZE is still far bigger
+                // than any reasonable request or response so this should never affect
+                // day-to-day operation.
+                if (self.nread > HTTP_MAX_HEADER_SIZE) {
+                    self.errno = error::HeaderOverflow;
+                    unknown_error!(self);
+                    return index;
+                }
+            }
+        }
+
+        // using loop to mimic 'goto reexecute_byte' in http_parser.c
+        let mut retry = false;
+        loop {
+
         }
         0
     }
