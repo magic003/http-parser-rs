@@ -1,8 +1,12 @@
 #![warn(experimental)]
 #![feature(macro_rules)]
 
+use std::u64;
+
 mod error;
 mod state;
+mod flags;
+mod http_method;
 
 pub enum HttpParserType {
     HttpRequest,
@@ -14,10 +18,15 @@ pub struct HttpParser {
     // private
     tp : HttpParserType,
     state : state::State,
+    flags : u8,
+    index : u8,             // index into current matcher
+
     nread : u32,            // bytes read in various scenarios
+    content_length : u64,   // bytes in body (0 if no Content-Length header
     
     // read-only
     errno : error::HttpErrno,
+    method : http_method::HttpMethod,            // request only
 }
 
 pub trait HttpParserCallback {
@@ -52,11 +61,31 @@ pub trait HttpParserCallback {
 
 const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
 
-macro_rules! unknown_error(
+const ULLONG_MAX : u64 = u64::MAX - 1;
+
+const CR : u8 = b'\r';
+const LF : u8 = b'\n';
+
+macro_rules! ensure_error(
     ($parser:ident) => (
         if $parser.errno == error::Ok {
             $parser.errno = error::Unknown;
         }
+    );
+)
+
+macro_rules! assert_ok(
+    ($parser:ident) => (
+        assert!($parser.errno == error::Ok);
+    );
+)
+
+macro_rules! callback(
+    ($parser:ident, $cb:expr, $err:expr) => (
+       match $cb {
+           Err(..) => $parser.errno = $err,
+           _ => (),
+       }
     );
 )
 
@@ -69,8 +98,12 @@ impl<T: HttpParserCallback> HttpParser {
                         HttpResponse    => state::StartRes,
                         HttpBoth        => state::StartReqOrRes,
                     },
+            flags : 0,
+            index : 0,
             nread : 0,
+            content_length: ULLONG_MAX,
             errno : error::Ok,
+            method : http_method::Get,
         }
     }
 
@@ -88,12 +121,9 @@ impl<T: HttpParserCallback> HttpParser {
         if data.len() == 0 {    // mean EOF
             match self.state {
                 state::BodyIdentityEof => {
-                    assert!(self.errno == error::Ok);
-                    match cb.on_message_complete() {
-                        Err(..) => self.errno = error::CBMessageComplete,
-                        _ => (),
-                    }
-
+                    assert_ok!(self);
+                    callback!(self, cb.on_message_complete(), 
+                              error::CBMessageComplete);
                     if self.errno == error::Ok {
                         return index;
                     }
@@ -134,7 +164,7 @@ impl<T: HttpParserCallback> HttpParser {
             _ => (),
         }
 
-        for ch in data.iter() {
+        for &ch in data.iter() {
             if (self.state <= state::HeadersDone) {
                 self.nread += 1;
 
@@ -152,16 +182,69 @@ impl<T: HttpParserCallback> HttpParser {
                 // day-to-day operation.
                 if (self.nread > HTTP_MAX_HEADER_SIZE) {
                     self.errno = error::HeaderOverflow;
-                    unknown_error!(self);
+                    ensure_error!(self);
                     return index;
                 }
             }
-        }
 
-        // using loop to mimic 'goto reexecute_byte' in http_parser.c
-        let mut retry = false;
-        loop {
+            // using loop to mimic 'goto reexecute_byte' in http_parser.c
+            let mut retry = false;
+            loop {
+                match self.state {
+                    state::Dead => {
+                        if ch != CR && ch != LF {
+                            self.errno = error::ClosedConnection;
+                            ensure_error!(self);
+                            return index;
+                        }
+                    },
+                    state::StartReqOrRes => {
+                        if ch != CR && ch != LF {
+                            self.flags = 0;
+                            self.content_length = ULLONG_MAX;
 
+                            if ch == b'H' {
+                                self.state = state::ResOrRespH;
+                                assert_ok!(self);
+                                callback!(self, cb.on_message_begin(),
+                                    error::CBMessageBegin);
+                                if self.errno != error::Ok {
+                                    return index+1;
+                                }
+                            } else {
+                                self.tp = HttpRequest;
+                                self.state = state::StartReq;
+                                retry = true;
+                            }
+                        }
+                    },
+                    state::ResOrRespH => {
+                        if ch == b'T' {
+                            self.tp = HttpResponse;
+                            self.state = state::ResHT;
+                        } else {
+                            if ch != b'E' {
+                                self.errno = error::InvalidConstant;
+                                ensure_error!(self);
+                                return index;
+                            }
+
+                            self.tp = HttpRequest;
+                            self.method = http_method::Head;
+                            self.index = 2;
+                            self.state = state::ReqMethod;
+                        }
+                    },
+                    state::StartRes => {
+
+                    },
+                    _ => (),
+                }
+
+                if !retry {
+                    break;
+                }
+            }
         }
         0
     }
