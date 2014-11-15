@@ -25,7 +25,10 @@ pub struct HttpParser {
     content_length : u64,   // bytes in body (0 if no Content-Length header
     
     // read-only
+    http_major : u8,
+    http_minor : u8,
     errno : error::HttpErrno,
+    status_code : u16,                          // response only
     method : http_method::HttpMethod,            // request only
 }
 
@@ -60,8 +63,9 @@ pub trait HttpParserCallback {
 }
 
 const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
-
 const ULLONG_MAX : u64 = u64::MAX - 1;
+
+const HTTP_PARSER_STRICT : bool = true;
 
 const CR : u8 = b'\r';
 const LF : u8 = b'\n';
@@ -89,6 +93,23 @@ macro_rules! callback(
     );
 )
 
+macro_rules! strict_check(
+    ($parser:ident, $cond:expr, $idx:expr) => (
+        if HTTP_PARSER_STRICT && $cond {
+            $parser.errno = error::Strict;
+            return $idx;
+        }
+    );
+)
+
+macro_rules! mark(
+    ($mark:ident, $idx:expr) => (
+        if $mark != 0 {
+            $mark = $idx;
+        }
+    );
+)
+
 impl<T: HttpParserCallback> HttpParser {
     pub fn new(tp : HttpParserType) -> HttpParser {
         HttpParser { 
@@ -102,17 +123,20 @@ impl<T: HttpParserCallback> HttpParser {
             index : 0,
             nread : 0,
             content_length: ULLONG_MAX,
+            http_major: 1,
+            http_minor: 0,
             errno : error::Ok,
+            status_code : 0,
             method : http_method::Get,
         }
     }
 
     pub fn execute(&mut self, cb : T, data : &[u8]) -> int {
-        let mut index = 0;
-        let mut header_field_mark = 0u8;
-        let mut header_value_mark = 0u8;
-        let mut url_mark = 0u8;
-        let mut status_mark = 0u8;
+        let mut index = 0i;
+        let mut header_field_mark = 0i;
+        let mut header_value_mark = 0i;
+        let mut url_mark = 0i;
+        let mut status_mark = 0i;
 
         if self.errno == error::Ok {
             return 0;
@@ -165,7 +189,7 @@ impl<T: HttpParserCallback> HttpParser {
         }
 
         for &ch in data.iter() {
-            if (self.state <= state::HeadersDone) {
+            if self.state <= state::HeadersDone {
                 self.nread += 1;
 
                 // From http_parser.c
@@ -180,9 +204,8 @@ impl<T: HttpParserCallback> HttpParser {
                 // make the web a little safer. HTTP_MAX_HEADER_SIZE is still far bigger
                 // than any reasonable request or response so this should never affect
                 // day-to-day operation.
-                if (self.nread > HTTP_MAX_HEADER_SIZE) {
+                if self.nread > HTTP_MAX_HEADER_SIZE {
                     self.errno = error::HeaderOverflow;
-                    ensure_error!(self);
                     return index;
                 }
             }
@@ -194,7 +217,6 @@ impl<T: HttpParserCallback> HttpParser {
                     state::Dead => {
                         if ch != CR && ch != LF {
                             self.errno = error::ClosedConnection;
-                            ensure_error!(self);
                             return index;
                         }
                     },
@@ -225,7 +247,6 @@ impl<T: HttpParserCallback> HttpParser {
                         } else {
                             if ch != b'E' {
                                 self.errno = error::InvalidConstant;
-                                ensure_error!(self);
                                 return index;
                             }
 
@@ -236,7 +257,141 @@ impl<T: HttpParserCallback> HttpParser {
                         }
                     },
                     state::StartRes => {
+                        self.flags = 0;
+                        self.content_length = ULLONG_MAX;
 
+                        match ch {
+                            b'H' => self.state = state::ResH,
+                            CR | LF => (),
+                            _ => {
+                                self.errno = error::InvalidConstant;
+                                return index;
+                            }
+                        }
+                        
+                        assert_ok!(self);
+                        callback!(self, cb.on_message_begin(), 
+                                  error::CBMessageBegin);
+                    },
+                    state::ResH => {
+                        strict_check!(self, ch != b'T', index);                       
+                        self.state = state::ResHT;
+                    },
+                    state::ResHT => {
+                        strict_check!(self, ch != b'T', index);
+                        self.state = state::ResHTT;
+                    },
+                    state::ResHTT => {
+                        strict_check!(self, ch != b'P', index);
+                        self.state = state::ResHTTP;
+                    },
+                    state::ResHTTP => {
+                        strict_check!(self, ch != b'/', index);
+                        self.state = state::ResFirstHttpMajor;
+                    },
+                    state::ResFirstHttpMajor => {
+                        if ch < b'0' || ch > b'9' {
+                            self.errno = error::InvalidVersion;
+                            return index;
+                        }
+                        self.http_major = ch - b'0';
+                        self.state = state::ResHttpMajor;
+                    },
+                    state::ResHttpMajor => {
+                        if ch == b'.' {
+                            self.state = state::ResFirstHttpMinor;
+                        } else {
+                            if !HttpParser::is_num(ch) {
+                                self.errno = error::InvalidVersion;
+                                return index;
+                            }
+
+                            self.http_major *= 10;
+                            self.http_major += ch - b'0';
+
+                            if self.http_major > 999 {
+                                self.errno = error::InvalidVersion;
+                                return index;
+                            }
+                        }
+                    },
+                    state::ResFirstHttpMinor => {
+                        if !HttpParser::is_num(ch) {
+                            self.errno = error::InvalidVersion;
+                            return index;
+                        }
+
+                        self.http_minor = ch - b'0';
+                        self.state = state::ResHttpMinor;
+                    },
+                    // minor HTTP version or end of request line
+                    state::ResHttpMinor => {
+                        if ch == b' ' {
+                            self.state = state::ResFirstStatusCode;
+                        } else {
+                            if !HttpParser::is_num(ch) {
+                                self.errno = error::InvalidVersion;
+                                return index;
+                            }
+
+                            self.http_minor *= 10;
+                            self.http_minor += ch - b'0';
+
+                            if self.http_minor > 999 {
+                                self.errno = error::InvalidVersion;
+                                return index;
+                            }
+                        }
+                    },
+                    state::ResFirstStatusCode => {
+                        if !HttpParser::is_num(ch) {
+                            if ch != b' ' {
+                                self.errno = error::InvalidStatus;
+                                return index;
+                            }
+                        } else {
+                            self.status_code = (ch - b'0') as u16;
+                            self.state = state::ResStatusCode;
+                        }
+                    },
+                    state::ResStatusCode => {
+                        if !HttpParser::is_num(ch) {
+                            match ch {
+                                b' ' => self.state = state::ResStatusStart,
+                                CR   => self.state = state::ResLineAlmostDone,
+                                LF   => self.state = state::HeaderFieldStart,
+                                _    => {
+                                    self.errno = error::InvalidStatus;
+                                    return index;
+                                }
+                            }
+                        }
+
+                        self.status_code *= 10;
+                        self.status_code += (ch - b'0') as u16;
+
+                        if self.status_code > 999 {
+                            self.errno = error::InvalidStatus;
+                            return index;
+                        }
+                    },
+                    state::ResStatusStart => {
+                        if ch == CR {
+                            self.state = state::ResLineAlmostDone;
+                        } else if ch == LF {
+                            self.state = state::HeaderFieldStart;
+                        } else {
+                            mark!(status_mark, index);
+                            self.state = state::ResStatus;
+                            self.index = 0;
+                        }
+                    },
+                    state::ResStatus => {
+                        if ch == CR {
+                            self.state = state::ResLineAlmostDone;
+                        } else if ch == LF {
+                            self.state = state::HeaderFieldStart;
+                        }
                     },
                     _ => (),
                 }
@@ -246,6 +401,12 @@ impl<T: HttpParserCallback> HttpParser {
                 }
             }
         }
+
+        index += 1;
         0
+    }
+
+    fn is_num(ch : u8) -> bool {
+        ch >= b'0' && ch <= b'9'
     }
 }
