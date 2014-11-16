@@ -480,12 +480,12 @@ impl<T: HttpParserCallback> HttpParser {
                             self.state = state::ResLineAlmostDone;
                             callback_data!(self, status_mark,
                                 cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
-                                error::CBStatus, index);
+                                error::CBStatus, index+1);
                         } else if ch == LF {
                             self.state = state::HeaderFieldStart;
                             callback_data!(self, status_mark,
                                 cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
-                                error::CBStatus, index);
+                                error::CBStatus, index+1);
                         }
                     },
                     state::ResLineAlmostDone => {
@@ -659,7 +659,7 @@ impl<T: HttpParserCallback> HttpParser {
                                 self.state = state::ReqHttpStart;
                                 callback_data!(self, url_mark,
                                     cb.on_status(data, url_mark.unwrap(), index - url_mark.unwrap()),
-                                    error::CBUrl, index);
+                                    error::CBUrl, index+1);
                             },
                             CR | LF => {
                                 self.http_major = 0;
@@ -671,7 +671,7 @@ impl<T: HttpParserCallback> HttpParser {
                                 };
                                 callback_data!(self, url_mark,
                                     cb.on_status(data, url_mark.unwrap(), index - url_mark.unwrap()),
-                                    error::CBUrl, index);
+                                    error::CBUrl, index+1);
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self.state, ch);
