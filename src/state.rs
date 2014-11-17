@@ -73,3 +73,29 @@ pub enum State {
 
     MessageDone
 }
+
+pub enum HeaderState {
+    General,
+    C,
+    CO,
+    CON,
+
+    MatchingConnection,
+    MatchingProxyConnection,
+    MatchingContentLength,
+    MatchingTransferEncoding,
+    MatchingUpgrade,
+
+    Connection,
+    ContentLength,
+    TransferEncoding,
+    Upgrade,
+
+    MatchingTransferEncodingChunked,
+    MatchingConnectionKeepAlive,
+    MatchingConnectionClose,
+
+    TransferEncodingChunked,
+    ConnectionKeepAlive,
+    ConnectionClose,
+}
