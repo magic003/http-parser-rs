@@ -1,5 +1,6 @@
 #![warn(experimental)]
 #![feature(macro_rules)]
+#![allow(experimental)]
 
 extern crate collections;
 
@@ -44,18 +45,22 @@ pub trait HttpParserCallback {
         Ok(0)
     }
 
+    #[allow(unused_variables)]
     fn on_url(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
+    #[allow(unused_variables)]
     fn on_status(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
+    #[allow(unused_variables)]
     fn on_header_field(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
+    #[allow(unused_variables)]
     fn on_header_value(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
@@ -64,6 +69,7 @@ pub trait HttpParserCallback {
         Ok(0)
     }
 
+    #[allow(unused_variables)]
     fn on_body(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
@@ -109,7 +115,8 @@ macro_rules! callback_data(
             if $parser.errno != error::Ok {
                 return $idx;
             }
-            $mark = None;
+            // never used. Maybe unnecessary?
+            // $mark = None;
         }
     );
 )
@@ -341,7 +348,6 @@ impl<T: HttpParserCallback> HttpParser {
     }
 
     pub fn execute(&mut self, cb : T, data : &[u8]) -> u64 {
-        let mut unhex_val : i8 = -1;
         let mut index : u64 = 0;
         let len : u64 = data.len() as u64;
         let mut header_field_mark : Option<u64> = None;
@@ -1118,14 +1124,13 @@ impl<T: HttpParserCallback> HttpParser {
                                     assert!(false, "Shouldn't get here.");
                                 },
                                 state::ContentLength => {
-                                    let mut t : u64 = 0;
                                     if ch != b' ' {
                                         if !is_num(ch) {
                                             self.errno = error::InvalidContentLength;
                                             return index;
                                         }
 
-                                        t = self.content_length;
+                                        let mut t : u64 = self.content_length;
                                         t *= 10;
                                         t += (ch - b'0') as u64;
 
@@ -1384,7 +1389,7 @@ impl<T: HttpParserCallback> HttpParser {
                         assert!(self.nread == 1);
                         assert!(self.flags & flags::flags::CHUNKED != 0);
 
-                        unhex_val = UNHEX[ch as uint];
+                        let unhex_val : i8 = UNHEX[ch as uint];
                         if unhex_val == -1 {
                             self.errno = error::InvalidChunkSize;
                             return index;
@@ -1394,13 +1399,12 @@ impl<T: HttpParserCallback> HttpParser {
                         self.state = state::ChunkSize;
                     },
                     state::ChunkSize => {
-                        let mut t : u64 = 0;
                         assert!(self.flags & flags::flags::CHUNKED != 0);
 
                         if ch == CR {
                             self.state = state::ChunkSizeAlmostDone;
                         } else {
-                            unhex_val = UNHEX[ch as uint];
+                            let unhex_val : i8 = UNHEX[ch as uint];
                             if unhex_val == -1 {
                                 if ch == b';' || ch == b' ' {
                                     self.state = state::ChunkParameters;
@@ -1410,7 +1414,7 @@ impl<T: HttpParserCallback> HttpParser {
                                 }
                             }
 
-                            t = self.content_length;
+                            let mut t : u64 = self.content_length;
                             t *= 16;
                             t += unhex_val as u64;
 
