@@ -5,8 +5,6 @@ extern crate collections;
 
 use std::u64;
 use std::cmp;
-use std::collections::Bitv;
-use collections::bitv;
 
 mod error;
 mod state;
@@ -526,7 +524,7 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_major *= 10;
                             self.http_major += ch - b'0';
 
-                            if self.http_major > 999 {
+                            if self.http_major > 99 {
                                 self.errno = error::InvalidVersion;
                                 return index;
                             }
@@ -554,7 +552,7 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_minor *= 10;
                             self.http_minor += ch - b'0';
 
-                            if self.http_minor > 999 {
+                            if self.http_minor > 99 {
                                 self.errno = error::InvalidVersion;
                                 return index;
                             }
@@ -864,7 +862,7 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_major *= 10;
                             self.http_major += ch - b'0';
 
-                            if self.http_major > 999 {
+                            if self.http_major > 99 {
                                 self.errno = error::InvalidVersion;
                                 return index;
                             }
@@ -894,7 +892,7 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_minor *= 10;
                             self.http_minor += ch - b'0';
 
-                            if self.http_minor > 999 {
+                            if self.http_minor > 99 {
                                 self.errno = error::InvalidVersion;
                                 return index;
                             }
@@ -1446,7 +1444,7 @@ impl<T: HttpParserCallback> HttpParser {
                         }
                     },
                     state::ChunkData => {
-                        let mut to_read : u64 = cmp::min(self.content_length,
+                        let to_read : u64 = cmp::min(self.content_length,
                                                          len - index);
                         assert!(self.flags & flags::flags::CHUNKED != 0);
                         assert!(self.content_length != 0 &&
