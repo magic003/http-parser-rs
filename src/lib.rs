@@ -4,6 +4,7 @@
 extern crate collections;
 
 use std::u64;
+use std::cmp;
 use std::collections::Bitv;
 use collections::bitv;
 
@@ -45,19 +46,19 @@ pub trait HttpParserCallback {
         Ok(0)
     }
 
-    fn on_url(&self, buff : &[u8], start : uint, length : uint) -> Result<i8, &str> {
+    fn on_url(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_status(&self, buff : &[u8], start : uint, length : uint) -> Result<i8, &str> {
+    fn on_status(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_header_field(&self, buff : &[u8], start : uint, length : uint) -> Result<i8, &str> {
+    fn on_header_field(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_header_value(&self, buff : &[u8], start : uint, length : uint) -> Result<i8, &str> {
+    fn on_header_value(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
@@ -65,7 +66,7 @@ pub trait HttpParserCallback {
         Ok(0)
     }
 
-    fn on_body(&self, buff : &[u8], start : uint, length : uint) -> Result<i8, &str> {
+    fn on_body(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
         Ok(0)
     }
 
@@ -172,7 +173,7 @@ const CHUNKED : &'static str = "chunked";
 const KEEP_ALIVE : &'static str = "keep-alive";
 const CLOSE : &'static str = "close";
 
-const tokens : [Option<u8>, ..256] = [
+const TOKEN : [Option<u8>, ..256] = [
     //   0 nul      1 soh       2 stx       3 etx      4 eot        5 enq       6 ack       7 bel   
          None,       None,     None,        None,       None,       None,        None,      None,       
     //   8 bs        9 ht      10 nl        11 vt      12 np        13 cr       14 so       15 si    
@@ -223,7 +224,7 @@ const tokens : [Option<u8>, ..256] = [
         None,       None,     None,        None,       None,       None,        None,      None,       
         None,       None,     None,        None,       None,       None,        None,      None];
 
-const normal_url_char : [u8, ..32] = [
+const NORMAL_URL_CHAR : [u8, ..32] = [
     //   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel   
             0    |   0    |   0    |   0    |   0    |   0    |   0    |   0,       
     //   8 bs     9 ht    10 nl    11 vt    12 np    13 cr    14 so    15 si
@@ -258,18 +259,36 @@ const normal_url_char : [u8, ..32] = [
             1    |   2    |   4    |   8    |   16   |   32   |   64   |   0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
+const UNHEX : [i8, ..256] = [
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+     0, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,
+    -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1];
+
 // TODO replace some functions by macros
 
 fn token(ch :u8) -> Option<u8> {
     if HTTP_PARSER_STRICT {
-        tokens[ch as uint]
+        TOKEN[ch as uint]
     } else {
-        if ch == b' ' { Some(b' ') } else { tokens[ch as uint] }
+        if ch == b' ' { Some(b' ') } else { TOKEN[ch as uint] }
     }
 }
 
 fn is_url_char(ch : u8) -> bool {
-    let res = (normal_url_char[(ch >> 3) as uint] & (1 << ((ch & 7) as uint))) != 0;
+    let res = (NORMAL_URL_CHAR[(ch >> 3) as uint] & (1 << ((ch & 7) as uint))) != 0;
     res || (!HTTP_PARSER_STRICT && (ch & 0x80) > 0)
 }
 
@@ -323,18 +342,21 @@ impl<T: HttpParserCallback> HttpParser {
         }
     }
 
-    pub fn execute(&mut self, cb : T, data : &[u8]) -> uint {
-        let mut index : uint = 0;
-        let mut header_field_mark : Option<uint> = None;
-        let mut header_value_mark : Option<uint> = None;
-        let mut url_mark : Option<uint> = None;
-        let mut status_mark : Option<uint> = None;
+    pub fn execute(&mut self, cb : T, data : &[u8]) -> u64 {
+        let mut unhex_val : i8 = -1;
+        let mut index : u64 = 0;
+        let len : u64 = data.len() as u64;
+        let mut header_field_mark : Option<u64> = None;
+        let mut header_value_mark : Option<u64> = None;
+        let mut url_mark : Option<u64> = None;
+        let mut body_mark : Option<u64> = None;
+        let mut status_mark : Option<u64> = None;
 
         if self.errno == error::Ok {
             return 0;
         }
 
-        if data.len() == 0 {    // mean EOF
+        if len == 0 {    // mean EOF
             match self.state {
                 state::BodyIdentityEof => {
                     assert_ok!(self);
@@ -642,7 +664,7 @@ impl<T: HttpParserCallback> HttpParser {
                         }
                     },
                     state::ReqMethod => {
-                        if index == data.len() {
+                        if index == len {
                             self.errno = error::InvalidMethod;
                             return index;
                         }
@@ -1314,19 +1336,193 @@ impl<T: HttpParserCallback> HttpParser {
                         }
                     },
                     state::BodyIdentity => {
+                        let to_read : u64 = cmp::min(self.content_length,
+                                                    (len - index) as u64);
+                        assert!(self.content_length != 0 &&
+                                self.content_length != ULLONG_MAX);
 
+                        // The difference between advancing content_length and p is because
+                        // the latter will automaticaly advance on the next loop iteration.
+                        // Further, if content_length ends up at 0, we want to see the last
+                        // byte again for our message complete callback.
+                        mark!(body_mark, index);
+                        self.content_length -= to_read;
+
+                        index += to_read - 1;
+
+                        if self.content_length == 0 {
+                            self.state = state::MessageDone;
+
+                            // Mimic CALLBACK_DATA_NOADVANCE() but with one extra byte.
+                            //
+                            // The alternative to doing this is to wait for the next byte to
+                            // trigger the data callback, just as in every other case. The
+                            // problem with this is that this makes it difficult for the test
+                            // harness to distinguish between complete-on-EOF and
+                            // complete-on-length. It's not clear that this distinction is
+                            // important for applications, but let's keep it for now.
+                            assert_ok!(self);
+                            callback_data!(self, body_mark,
+                                cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap() + 1),
+                                error::CBBody, index);
+                            retry = true;
+                        }
                     },
-                    _ => (),
+                    // read until EOF
+                    state::BodyIdentityEof => {
+                        mark!(body_mark, index);
+                        index = len - 1;
+                    },
+                    state::MessageDone => {
+                        self.state = new_message!(self);
+                        assert_ok!(self);
+                        callback!(self, cb.on_message_complete(), 
+                                  error::CBMessageComplete);
+                        if self.errno != error::Ok {
+                            return index+1;
+                        }
+                    },
+                    state::ChunkSizeStart => {
+                        assert!(self.nread == 1);
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+
+                        unhex_val = UNHEX[ch as uint];
+                        if unhex_val == -1 {
+                            self.errno = error::InvalidChunkSize;
+                            return index;
+                        }
+
+                        self.content_length = unhex_val as u64;
+                        self.state = state::ChunkSize;
+                    },
+                    state::ChunkSize => {
+                        let mut t : u64 = 0;
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+
+                        if ch == CR {
+                            self.state = state::ChunkSizeAlmostDone;
+                        } else {
+                            unhex_val = UNHEX[ch as uint];
+                            if unhex_val == -1 {
+                                if ch == b';' || ch == b' ' {
+                                    self.state = state::ChunkParameters;
+                                } else {
+                                    self.errno = error::InvalidChunkSize;
+                                    return index;
+                                }
+                            }
+
+                            t = self.content_length;
+                            t *= 16;
+                            t += unhex_val as u64;
+
+                            // Overflow? Test against a conservative limit for simplicity
+                            if (ULLONG_MAX - 16)/16 < self.content_length {
+                                self.errno = error::InvalidContentLength;
+                                return index;
+                            }
+
+                            self.content_length = t;
+                        }
+                    },
+                    state::ChunkParameters => {
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+                        // just ignore this shit. TODO check for overflow
+                        if ch == CR {
+                            self.state = state::ChunkSizeAlmostDone;
+                        }
+                    },
+                    state::ChunkSizeAlmostDone => {
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+                        strict_check!(self, ch != LF, index);
+
+                        self.nread = 0;
+
+                        if self.content_length == 0 {
+                            self.flags |= flags::flags::TRAILING;
+                            self.state = state::HeaderFieldStart;
+                        } else {
+                            self.state = state::ChunkData;
+                        }
+                    },
+                    state::ChunkData => {
+                        let mut to_read : u64 = cmp::min(self.content_length,
+                                                         len - index);
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+                        assert!(self.content_length != 0 &&
+                                self.content_length != ULLONG_MAX);
+
+                        // See the explanation in s_body_identity for why the content
+                        // length and data pointers are managed this way.
+                        mark!(body_mark, index);
+                        self.content_length -= to_read;
+                        index += to_read - 1;
+
+                        if self.content_length == 0 {
+                            self.state = state::ChunkDataAlmostDone;
+                        }
+                    },
+                    state::ChunkDataAlmostDone => {
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+                        assert!(self.content_length == 0);
+                        strict_check!(self, ch != CR, index);
+                        self.state = state::ChunkDataDone;
+
+                        assert_ok!(self);
+                        callback_data!(self, body_mark,
+                            cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
+                            error::CBBody, index+1);
+                    },
+                    state::ChunkDataDone => {
+                        assert!(self.flags & flags::flags::CHUNKED != 0);
+                        strict_check!(self, ch != LF, index);
+                        self.nread = 0;
+                        self.state = state::ChunkSizeStart;
+                    },
+                    //_ => {
+                    //    assert!(false, "unhandled state");
+                    //    self.errno = error::InvalidInternalState;
+                    //    return index;
+                    //},
                 }
 
                 if !retry {
                     break;
                 }
             }
+            index += 1;
         }
 
-        index += 1;
-        0
+        // Run callbacks for any marks that we have leftover after we ran our of
+        // bytes. There should be at most one of these set, so it's OK to invoke
+        // them in series (unset marks will not result in callbacks).
+        //
+        // We use the NOADVANCE() variety of callbacks here because 'p' has already
+        // overflowed 'data' and this allows us to correct for the off-by-one that
+        // we'd otherwise have (since CALLBACK_DATA() is meant to be run with a 'p'
+        // value that's in-bounds).
+        assert!((if header_field_mark.is_some() { 1u8 } else { 0 }) +
+                (if header_value_mark.is_some() { 1 } else { 0 }) +
+                (if url_mark.is_some() { 1 } else { 0 }) +
+                (if body_mark.is_some() { 1 } else { 0 }) +
+                (if status_mark.is_some() { 1 } else { 0 }) <= 1);
+
+        callback_data!(self, header_field_mark,
+            cb.on_header_field(data, header_field_mark.unwrap(), index - header_field_mark.unwrap()),
+            error::CBHeaderField, index);
+        callback_data!(self, header_value_mark,
+            cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
+            error::CBHeaderValue, index);
+        callback_data!(self, url_mark,
+            cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
+            error::CBUrl, index);
+        callback_data!(self, body_mark,
+            cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
+            error::CBBody, index);
+        callback_data!(self, status_mark,
+            cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
+            error::CBStatus, index);
+        len
     }
 
 
