@@ -1,10 +1,10 @@
 extern crate http_parser;
 
-use http_parser::{HttpParser, HttpParserType, HttpParserCallback};
+use self::http_parser::{HttpParser, HttpParserType, HttpParserCallback};
 
 #[test]
-fn main() {
-    let hp = HttpParser::new(HttpParserType::HttpBoth);
+fn test_interface() {
+    let mut hp = HttpParser::new(HttpParserType::HttpBoth);
     
     struct Callback;
 
@@ -15,5 +15,5 @@ fn main() {
     }
 
     let cb = Callback;
-    hp.execute(cb);
+    hp.execute(cb, [b'a', b'b', b'c']);
 }
