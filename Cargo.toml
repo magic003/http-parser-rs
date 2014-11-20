@@ -3,3 +3,11 @@
 name = "http_parser"
 version = "0.0.1"
 authors = ["Minjie Zha <minjiezha@gmail.com>"]
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+opt-level = 0
+debug = true
