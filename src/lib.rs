@@ -324,7 +324,7 @@ fn is_userinfo_char(ch : u8) -> bool {
         ch == b'+' || ch == b'$' || ch == b','
 }
 
-impl<T: HttpParserCallback> HttpParser {
+impl HttpParser {
     pub fn new(tp : HttpParserType) -> HttpParser {
         HttpParser { 
             tp : tp,  
@@ -347,7 +347,7 @@ impl<T: HttpParserCallback> HttpParser {
         }
     }
 
-    pub fn execute(&mut self, cb : T, data : &[u8]) -> u64 {
+    pub fn execute<T: HttpParserCallback>(&mut self, cb : T, data : &[u8]) -> u64 {
         let mut index : u64 = 0;
         let len : u64 = data.len() as u64;
         let mut header_field_mark : Option<u64> = None;
@@ -1677,3 +1677,26 @@ impl<T: HttpParserCallback> HttpParser {
         !self.http_message_needs_eof()
     }
 }
+
+// for tests
+pub struct CallbackEmpty;
+
+impl HttpParserCallback for CallbackEmpty {}
+
+fn main() {
+    let line : &str = "GET / HTTP/1.1\r\n";
+    test_first_line(HttpParserType::HttpRequest, line.as_bytes());
+}
+
+fn test_status_line() {
+    let line : &str = "HTTP/1.0 200 OK\r\n";
+    test_first_line(HttpParserType::HttpResponse, line.as_bytes());
+}
+
+fn test_first_line(tp : HttpParserType, data : &[u8]) {
+    let mut hp : HttpParser = HttpParser::new(tp);
+    let cb = CallbackEmpty;
+    let parsed : u64 = hp.execute(cb, data);
+    assert_eq!(parsed, data.len() as u64);
+}
+
