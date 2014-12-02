@@ -83,15 +83,15 @@ pub trait HttpParserCallback {
 
 macro_rules! ensure_error(
     ($parser:ident) => (
-        if $parser.errno == error::Ok {
-            $parser.errno = error::Unknown;
+        if $parser.errno == error::HttpErrno::Ok {
+            $parser.errno = error::HttpErrno::Unknown;
         }
     );
 )
 
 macro_rules! assert_ok(
     ($parser:ident) => (
-        assert!($parser.errno == error::Ok);
+        assert!($parser.errno == error::HttpErrno::Ok);
     );
 )
 
@@ -112,7 +112,7 @@ macro_rules! callback_data(
                 _ => (),
             }
 
-            if $parser.errno != error::Ok {
+            if $parser.errno != error::HttpErrno::Ok {
                 return $idx;
             }
             // never used. Maybe unnecessary?
@@ -122,10 +122,10 @@ macro_rules! callback_data(
 )
 macro_rules! start_state(
     ($parser:ident) => (
-        if $parser.tp == HttpRequest {
-            state::StartReq
+        if $parser.tp == HttpParserType::HttpRequest {
+            state::State::StartReq
         } else {
-            state::StartRes
+            state::State::StartRes
         }
     );
 )
@@ -133,7 +133,7 @@ macro_rules! start_state(
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
         if HTTP_PARSER_STRICT && $cond {
-            $parser.errno = error::Strict;
+            $parser.errno = error::HttpErrno::Strict;
             return $idx;
         }
     );
@@ -145,7 +145,7 @@ macro_rules! new_message(
             if $parser.http_should_keep_alive() {
                 start_state!($parser)
             } else {
-                state::Dead
+                state::State::Dead
             }
         } else {
             start_state!($parser)
@@ -329,20 +329,20 @@ impl<T: HttpParserCallback> HttpParser {
         HttpParser { 
             tp : tp,  
             state : match tp {
-                        HttpRequest     => state::StartReq,
-                        HttpResponse    => state::StartRes,
-                        HttpBoth        => state::StartReqOrRes,
+                        HttpParserType::HttpRequest     => state::State::StartReq,
+                        HttpParserType::HttpResponse    => state::State::StartRes,
+                        HttpParserType::HttpBoth        => state::State::StartReqOrRes,
                     },
-            header_state : state::General,
+            header_state : state::HeaderState::General,
             flags : 0,
             index : 0,
             nread : 0,
             content_length: ULLONG_MAX,
             http_major: 1,
             http_minor: 0,
-            errno : error::Ok,
+            errno : error::HttpErrno::Ok,
             status_code : 0,
-            method : http_method::Get,
+            method : http_method::HttpMethod::Get,
             upgrade : false,
         }
     }
@@ -356,58 +356,58 @@ impl<T: HttpParserCallback> HttpParser {
         let mut body_mark : Option<u64> = None;
         let mut status_mark : Option<u64> = None;
 
-        if self.errno == error::Ok {
+        if self.errno == error::HttpErrno::Ok {
             return 0;
         }
 
         if len == 0 {    // mean EOF
             match self.state {
-                state::BodyIdentityEof => {
+                state::State::BodyIdentityEof => {
                     assert_ok!(self);
                     callback!(self, cb.on_message_complete(), 
-                              error::CBMessageComplete);
-                    if self.errno != error::Ok {
+                              error::HttpErrno::CBMessageComplete);
+                    if self.errno != error::HttpErrno::Ok {
                         return index;
                     }
                     return 0;
                 },
-                state::Dead | 
-                state::StartReqOrRes | 
-                state::StartReq | 
-                state::StartRes => {
+                state::State::Dead | 
+                state::State::StartReqOrRes | 
+                state::State::StartReq | 
+                state::State::StartRes => {
                     return 0;
                 }
                 _ => {
-                   self.errno = error::InvalidEofState;
+                   self.errno = error::HttpErrno::InvalidEofState;
                    return 1;
                 }
             }
         }
 
-        if self.state == state::HeaderField {
+        if self.state == state::State::HeaderField {
             header_field_mark = Some(0);
         }
-        if self.state == state::HeaderValue {
+        if self.state == state::State::HeaderValue {
             header_value_mark = Some(0);
         }
         match self.state {
-            state::ReqPath |
-            state::ReqSchema |
-            state::ReqSchemaSlash |
-            state::ReqSchemaSlashSlash |
-            state::ReqServerStart |
-            state::ReqServer |
-            state::ReqServerWithAt |
-            state::ReqQueryStringStart |
-            state::ReqQueryString |
-            state::ReqFragmentStart |
-            state::ReqFragment => url_mark = Some(0),
-            state::ResStatus => status_mark = Some(0),
+            state::State::ReqPath |
+            state::State::ReqSchema |
+            state::State::ReqSchemaSlash |
+            state::State::ReqSchemaSlashSlash |
+            state::State::ReqServerStart |
+            state::State::ReqServer |
+            state::State::ReqServerWithAt |
+            state::State::ReqQueryStringStart |
+            state::State::ReqQueryString |
+            state::State::ReqFragmentStart |
+            state::State::ReqFragment => url_mark = Some(0),
+            state::State::ResStatus => status_mark = Some(0),
             _ => (),
         }
 
         for &ch in data.iter() {
-            if self.state <= state::HeadersDone {
+            if self.state <= state::State::HeadersDone {
                 self.nread += 1;
 
                 // From http_parser.c
@@ -423,7 +423,7 @@ impl<T: HttpParserCallback> HttpParser {
                 // than any reasonable request or response so this should never affect
                 // day-to-day operation.
                 if self.nread > HTTP_MAX_HEADER_SIZE {
-                    self.errno = error::HeaderOverflow;
+                    self.errno = error::HttpErrno::HeaderOverflow;
                     return index;
                 }
             }
@@ -432,98 +432,98 @@ impl<T: HttpParserCallback> HttpParser {
             let mut retry = false;
             loop {
                 match self.state {
-                    state::Dead => {
+                    state::State::Dead => {
                         if ch != CR && ch != LF {
-                            self.errno = error::ClosedConnection;
+                            self.errno = error::HttpErrno::ClosedConnection;
                             return index;
                         }
                     },
-                    state::StartReqOrRes => {
+                    state::State::StartReqOrRes => {
                         if ch != CR && ch != LF {
                             self.flags = 0;
                             self.content_length = ULLONG_MAX;
 
                             if ch == b'H' {
-                                self.state = state::ResOrRespH;
+                                self.state = state::State::ResOrRespH;
                                 assert_ok!(self);
                                 callback!(self, cb.on_message_begin(),
-                                    error::CBMessageBegin);
-                                if self.errno != error::Ok {
+                                    error::HttpErrno::CBMessageBegin);
+                                if self.errno != error::HttpErrno::Ok {
                                     return index+1;
                                 }
                             } else {
-                                self.tp = HttpRequest;
-                                self.state = state::StartReq;
+                                self.tp = HttpParserType::HttpRequest;
+                                self.state = state::State::StartReq;
                                 retry = true;
                             }
                         }
                     },
-                    state::ResOrRespH => {
+                    state::State::ResOrRespH => {
                         if ch == b'T' {
-                            self.tp = HttpResponse;
-                            self.state = state::ResHT;
+                            self.tp = HttpParserType::HttpResponse;
+                            self.state = state::State::ResHT;
                         } else {
                             if ch != b'E' {
-                                self.errno = error::InvalidConstant;
+                                self.errno = error::HttpErrno::InvalidConstant;
                                 return index;
                             }
 
-                            self.tp = HttpRequest;
-                            self.method = http_method::Head;
+                            self.tp = HttpParserType::HttpRequest;
+                            self.method = http_method::HttpMethod::Head;
                             self.index = 2;
-                            self.state = state::ReqMethod;
+                            self.state = state::State::ReqMethod;
                         }
                     },
-                    state::StartRes => {
+                    state::State::StartRes => {
                         self.flags = 0;
                         self.content_length = ULLONG_MAX;
 
                         match ch {
-                            b'H' => self.state = state::ResH,
+                            b'H' => self.state = state::State::ResH,
                             CR | LF => (),
                             _ => {
-                                self.errno = error::InvalidConstant;
+                                self.errno = error::HttpErrno::InvalidConstant;
                                 return index;
                             }
                         }
                         
                         assert_ok!(self);
                         callback!(self, cb.on_message_begin(), 
-                                  error::CBMessageBegin);
-                        if self.errno != error::Ok {
+                                  error::HttpErrno::CBMessageBegin);
+                        if self.errno != error::HttpErrno::Ok {
                             return index+1;
                         }
                     },
-                    state::ResH => {
+                    state::State::ResH => {
                         strict_check!(self, ch != b'T', index);                       
-                        self.state = state::ResHT;
+                        self.state = state::State::ResHT;
                     },
-                    state::ResHT => {
+                    state::State::ResHT => {
                         strict_check!(self, ch != b'T', index);
-                        self.state = state::ResHTT;
+                        self.state = state::State::ResHTT;
                     },
-                    state::ResHTT => {
+                    state::State::ResHTT => {
                         strict_check!(self, ch != b'P', index);
-                        self.state = state::ResHTTP;
+                        self.state = state::State::ResHTTP;
                     },
-                    state::ResHTTP => {
+                    state::State::ResHTTP => {
                         strict_check!(self, ch != b'/', index);
-                        self.state = state::ResFirstHttpMajor;
+                        self.state = state::State::ResFirstHttpMajor;
                     },
-                    state::ResFirstHttpMajor => {
+                    state::State::ResFirstHttpMajor => {
                         if ch < b'0' || ch > b'9' {
-                            self.errno = error::InvalidVersion;
+                            self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         }
                         self.http_major = ch - b'0';
-                        self.state = state::ResHttpMajor;
+                        self.state = state::State::ResHttpMajor;
                     },
-                    state::ResHttpMajor => {
+                    state::State::ResHttpMajor => {
                         if ch == b'.' {
-                            self.state = state::ResFirstHttpMinor;
+                            self.state = state::State::ResFirstHttpMinor;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
 
@@ -531,27 +531,27 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_major += ch - b'0';
 
                             if self.http_major > 99 {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
                         }
                     },
-                    state::ResFirstHttpMinor => {
+                    state::State::ResFirstHttpMinor => {
                         if !is_num(ch) {
-                            self.errno = error::InvalidVersion;
+                            self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         }
 
                         self.http_minor = ch - b'0';
-                        self.state = state::ResHttpMinor;
+                        self.state = state::State::ResHttpMinor;
                     },
                     // minor HTTP version or end of request line
-                    state::ResHttpMinor => {
+                    state::State::ResHttpMinor => {
                         if ch == b' ' {
-                            self.state = state::ResFirstStatusCode;
+                            self.state = state::State::ResFirstStatusCode;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
 
@@ -559,30 +559,30 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_minor += ch - b'0';
 
                             if self.http_minor > 99 {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
                         }
                     },
-                    state::ResFirstStatusCode => {
+                    state::State::ResFirstStatusCode => {
                         if !is_num(ch) {
                             if ch != b' ' {
-                                self.errno = error::InvalidStatus;
+                                self.errno = error::HttpErrno::InvalidStatus;
                                 return index;
                             }
                         } else {
                             self.status_code = (ch - b'0') as u16;
-                            self.state = state::ResStatusCode;
+                            self.state = state::State::ResStatusCode;
                         }
                     },
-                    state::ResStatusCode => {
+                    state::State::ResStatusCode => {
                         if !is_num(ch) {
                             match ch {
-                                b' ' => self.state = state::ResStatusStart,
-                                CR   => self.state = state::ResLineAlmostDone,
-                                LF   => self.state = state::HeaderFieldStart,
+                                b' ' => self.state = state::State::ResStatusStart,
+                                CR   => self.state = state::State::ResLineAlmostDone,
+                                LF   => self.state = state::State::HeaderFieldStart,
                                 _    => {
-                                    self.errno = error::InvalidStatus;
+                                    self.errno = error::HttpErrno::InvalidStatus;
                                     return index;
                                 }
                             }
@@ -592,276 +592,276 @@ impl<T: HttpParserCallback> HttpParser {
                         self.status_code += (ch - b'0') as u16;
 
                         if self.status_code > 999 {
-                            self.errno = error::InvalidStatus;
+                            self.errno = error::HttpErrno::InvalidStatus;
                             return index;
                         }
                     },
-                    state::ResStatusStart => {
+                    state::State::ResStatusStart => {
                         if ch == CR {
-                            self.state = state::ResLineAlmostDone;
+                            self.state = state::State::ResLineAlmostDone;
                         } else if ch == LF {
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                         } else {
                             mark!(status_mark, index);
-                            self.state = state::ResStatus;
+                            self.state = state::State::ResStatus;
                             self.index = 0;
                         }
                     },
-                    state::ResStatus => {
+                    state::State::ResStatus => {
                         if ch == CR {
-                            self.state = state::ResLineAlmostDone;
+                            self.state = state::State::ResLineAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
-                                error::CBStatus, index+1);
+                                error::HttpErrno::CBStatus, index+1);
                         } else if ch == LF {
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
-                                error::CBStatus, index+1);
+                                error::HttpErrno::CBStatus, index+1);
                         }
                     },
-                    state::ResLineAlmostDone => {
+                    state::State::ResLineAlmostDone => {
                         strict_check!(self, ch != LF, index);
-                        self.state = state::HeaderFieldStart;
+                        self.state = state::State::HeaderFieldStart;
                     },
-                    state::StartReq => {
+                    state::State::StartReq => {
                         if ch != CR && ch != LF {
                             self.flags = 0;
                             self.content_length = ULLONG_MAX;
 
                             if !is_alpha(ch) {
-                                self.errno = error::InvalidMethod;
+                                self.errno = error::HttpErrno::InvalidMethod;
                                 return index;
                             }
 
-                            self.method = http_method::Delete;
+                            self.method = http_method::HttpMethod::Delete;
                             self.index = 1;
                             match ch {
-                                b'C' => self.method = http_method::Connect, // or Copy, Checkout
-                                b'D' => self.method = http_method::Delete,
-                                b'G' => self.method = http_method::Get,
-                                b'H' => self.method = http_method::Head,
-                                b'L' => self.method = http_method::Lock,
-                                b'M' => self.method = http_method::MKCol, // or Move, MKActivity, Merge, MSearch, MKCalendar
-                                b'N' => self.method = http_method::Notify,
-                                b'O' => self.method = http_method::Options,
-                                b'P' => self.method = http_method::Post, // or PropFind|PropPatch|Put|Patch|Purge
-                                b'R' => self.method = http_method::Report,
-                                b'S' => self.method = http_method::Subscribe, // or Search
-                                b'T' => self.method = http_method::Trace,
-                                b'U' => self.method = http_method::Unlock, // or Unsubscribe
+                                b'C' => self.method = http_method::HttpMethod::Connect, // or Copy, Checkout
+                                b'D' => self.method = http_method::HttpMethod::Delete,
+                                b'G' => self.method = http_method::HttpMethod::Get,
+                                b'H' => self.method = http_method::HttpMethod::Head,
+                                b'L' => self.method = http_method::HttpMethod::Lock,
+                                b'M' => self.method = http_method::HttpMethod::MKCol, // or Move, MKActivity, Merge, MSearch, MKCalendar
+                                b'N' => self.method = http_method::HttpMethod::Notify,
+                                b'O' => self.method = http_method::HttpMethod::Options,
+                                b'P' => self.method = http_method::HttpMethod::Post, // or PropFind|PropPatch|Put|Patch|Purge
+                                b'R' => self.method = http_method::HttpMethod::Report,
+                                b'S' => self.method = http_method::HttpMethod::Subscribe, // or Search
+                                b'T' => self.method = http_method::HttpMethod::Trace,
+                                b'U' => self.method = http_method::HttpMethod::Unlock, // or Unsubscribe
                                 _ => {
-                                    self.errno = error::InvalidMethod;
+                                    self.errno = error::HttpErrno::InvalidMethod;
                                     return index;
                                 },
                             }
-                            self.state = state::ReqMethod;
+                            self.state = state::State::ReqMethod;
 
                             assert_ok!(self)
                             callback!(self, cb.on_message_begin(), 
-                                      error::CBMessageBegin);
-                            if self.errno != error::Ok {
+                                      error::HttpErrno::CBMessageBegin);
+                            if self.errno != error::HttpErrno::Ok {
                                 return index+1;
                             }
                         }
                     },
-                    state::ReqMethod => {
+                    state::State::ReqMethod => {
                         if index == len {
-                            self.errno = error::InvalidMethod;
+                            self.errno = error::HttpErrno::InvalidMethod;
                             return index;
                         }
 
                         let matcher_string = self.method.to_string();
                         let matcher = matcher_string.as_slice();
                         if ch == b' ' && self.index == matcher.len() {
-                            self.state = state::ReqSpacesBeforeUrl;
+                            self.state = state::State::ReqSpacesBeforeUrl;
                         } else if ch == (matcher.char_at(self.index) as u8) {
                             ;
-                        } else if self.method == http_method::Connect {
+                        } else if self.method == http_method::HttpMethod::Connect {
                             if self.index == 1 && ch == b'H' {
-                                self.method = http_method::Checkout;
+                                self.method = http_method::HttpMethod::Checkout;
                             } else if self.index == 2 && ch == b'P' {
-                                self.method = http_method::Copy;
+                                self.method = http_method::HttpMethod::Copy;
                             } else {
-                                self.errno = error::InvalidMethod;
+                                self.errno = error::HttpErrno::InvalidMethod;
                                 return index;
                             }
-                        } else if self.method == http_method::MKCol {
+                        } else if self.method == http_method::HttpMethod::MKCol {
                             if self.index == 1 && ch == b'O' {
-                                self.method = http_method::Move;
+                                self.method = http_method::HttpMethod::Move;
                             } else if self.index == 1 && ch == b'E' {
-                                self.method = http_method::Merge;
+                                self.method = http_method::HttpMethod::Merge;
                             } else if self.index == 1 && ch == b'-' {
-                                self.method = http_method::MSearch;
+                                self.method = http_method::HttpMethod::MSearch;
                             } else if self.index == 2 && ch == b'A' {
-                                self.method = http_method::MKActivity;
+                                self.method = http_method::HttpMethod::MKActivity;
                             } else if self.index == 3 && ch == b'A' {
-                                self.method = http_method::MKCalendar;
+                                self.method = http_method::HttpMethod::MKCalendar;
                             } else {
-                                self.errno = error::InvalidMethod;
+                                self.errno = error::HttpErrno::InvalidMethod;
                                 return index;
                             }
-                        } else if self.method == http_method::Subscribe {
+                        } else if self.method == http_method::HttpMethod::Subscribe {
                             if self.index == 1 && ch == b'E' {
-                                self.method = http_method::Search;
+                                self.method = http_method::HttpMethod::Search;
                             } else {
-                                self.errno == error::InvalidMethod;
+                                self.errno == error::HttpErrno::InvalidMethod;
                                 return index;
                             }
-                        } else if self.index == 1 && self.method == http_method::Post {
+                        } else if self.index == 1 && self.method == http_method::HttpMethod::Post {
                            if ch == b'R' {
-                               self.method = http_method::PropFind; // or PropPatch
+                               self.method = http_method::HttpMethod::PropFind; // or PropPatch
                            } else if ch == b'U' {
-                               self.method = http_method::Put; // or Purge
+                               self.method = http_method::HttpMethod::Put; // or Purge
                            } else if ch == b'A' {
-                               self.method = http_method::Patch;
+                               self.method = http_method::HttpMethod::Patch;
                            } else {
-                               self.errno = error::InvalidMethod;
+                               self.errno = error::HttpErrno::InvalidMethod;
                                return index;
                            }
                         } else if self.index == 2 {
-                            if self.method == http_method::Put {
+                            if self.method == http_method::HttpMethod::Put {
                                 if ch == b'R' {
-                                    self.method = http_method::Purge;
+                                    self.method = http_method::HttpMethod::Purge;
                                 } else {
-                                    self.errno = error::InvalidMethod;
+                                    self.errno = error::HttpErrno::InvalidMethod;
                                     return index;
                                 }
-                            } else if self.method == http_method::Unlock {
+                            } else if self.method == http_method::HttpMethod::Unlock {
                                 if ch == b'S' {
-                                    self.method = http_method::Unsubscribe;
+                                    self.method = http_method::HttpMethod::Unsubscribe;
                                 } else {
-                                    self.errno = error::InvalidMethod;
+                                    self.errno = error::HttpErrno::InvalidMethod;
                                     return index;
                                 }
                             } else {
-                                self.errno = error::InvalidMethod;
+                                self.errno = error::HttpErrno::InvalidMethod;
                                 return index;
                             }
-                        } else if self.index == 4 && self.method == http_method::PropFind && ch == b'P' {
-                            self.method = http_method::PropPatch;
+                        } else if self.index == 4 && self.method == http_method::HttpMethod::PropFind && ch == b'P' {
+                            self.method = http_method::HttpMethod::PropPatch;
                         } else {
-                            self.errno = error::InvalidMethod;
+                            self.errno = error::HttpErrno::InvalidMethod;
                             return index;
                         }
 
                         self.index += 1;
                     },
-                    state::ReqSpacesBeforeUrl => {
+                    state::State::ReqSpacesBeforeUrl => {
                         if ch != b' ' {
                             mark!(url_mark, index);
-                            if self.method == http_method::Connect {
-                                self.state = state::ReqServerStart;
+                            if self.method == http_method::HttpMethod::Connect {
+                                self.state = state::State::ReqServerStart;
                             }
 
                             self.state = HttpParser::parse_url_char(self.state, ch);
-                            if self.state == state::Dead {
-                                self.errno = error::InvalidUrl;
+                            if self.state == state::State::Dead {
+                                self.errno = error::HttpErrno::InvalidUrl;
                                 return index;
                             }
                         }
                     },
-                    state::ReqSchema |
-                    state::ReqSchemaSlash |
-                    state::ReqSchemaSlashSlash |
-                    state::ReqServerStart => {
+                    state::State::ReqSchema |
+                    state::State::ReqSchemaSlash |
+                    state::State::ReqSchemaSlashSlash |
+                    state::State::ReqServerStart => {
                         match ch {
                             // No whitespace allowed here
                             b' ' | CR | LF => {
-                                self.errno = error::InvalidUrl;
+                                self.errno = error::HttpErrno::InvalidUrl;
                                 return index;
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self.state, ch);
-                                if self.state == state::Dead {
-                                    self.errno = error::InvalidUrl;
+                                if self.state == state::State::Dead {
+                                    self.errno = error::HttpErrno::InvalidUrl;
                                     return index;
                                 }
                             }
                         }
                     },
-                    state::ReqServer |
-                    state::ReqServerWithAt |
-                    state::ReqPath |
-                    state::ReqQueryStringStart |
-                    state::ReqQueryString |
-                    state::ReqFragmentStart |
-                    state::ReqFragment => {
+                    state::State::ReqServer |
+                    state::State::ReqServerWithAt |
+                    state::State::ReqPath |
+                    state::State::ReqQueryStringStart |
+                    state::State::ReqQueryString |
+                    state::State::ReqFragmentStart |
+                    state::State::ReqFragment => {
                         match ch {
                             b' ' => {
-                                self.state = state::ReqHttpStart;
+                                self.state = state::State::ReqHttpStart;
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
-                                    error::CBUrl, index+1);
+                                    error::HttpErrno::CBUrl, index+1);
                             },
                             CR | LF => {
                                 self.http_major = 0;
                                 self.http_minor = 9;
                                 self.state = if ch == CR {
-                                    state::ReqLineAlmostDone 
+                                    state::State::ReqLineAlmostDone 
                                 } else {
-                                    state::HeaderFieldStart
+                                    state::State::HeaderFieldStart
                                 };
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
-                                    error::CBUrl, index+1);
+                                    error::HttpErrno::CBUrl, index+1);
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self.state, ch);
-                                if self.state == state::Dead {
-                                    self.errno = error::InvalidUrl;
+                                if self.state == state::State::Dead {
+                                    self.errno = error::HttpErrno::InvalidUrl;
                                     return index;
                                 }
                             }
                         }
                     },
-                    state::ReqHttpStart => {
+                    state::State::ReqHttpStart => {
                         match ch {
-                            b'H' => self.state = state::ReqHttpH,
+                            b'H' => self.state = state::State::ReqHttpH,
                             b' ' => (),
                             _    => {
-                                self.errno = error::InvalidConstant;
+                                self.errno = error::HttpErrno::InvalidConstant;
                                 return index;
                             }
                         }
                     },
-                    state::ReqHttpH => {
+                    state::State::ReqHttpH => {
                         strict_check!(self, ch != b'T', index);
-                        self.state = state::ReqHttpHT;
+                        self.state = state::State::ReqHttpHT;
                     },
-                    state::ReqHttpHT => {
+                    state::State::ReqHttpHT => {
                         strict_check!(self, ch != b'T', index);
-                        self.state = state::ReqHttpHTT;
+                        self.state = state::State::ReqHttpHTT;
                     },
-                    state::ReqHttpHTT => {
+                    state::State::ReqHttpHTT => {
                         strict_check!(self, ch != b'P', index);
-                        self.state = state::ReqHttpHTTP;
+                        self.state = state::State::ReqHttpHTTP;
                     },
-                    state::ReqHttpHTTP => {
+                    state::State::ReqHttpHTTP => {
                         strict_check!(self, ch != b'/', index);
-                        self.state = state::ReqFirstHttpMajor;
+                        self.state = state::State::ReqFirstHttpMajor;
                     },
                     // first digit of major HTTP version
-                    state::ReqFirstHttpMajor => {
+                    state::State::ReqFirstHttpMajor => {
                         if ch < b'1' || ch > b'9' {
-                            self.errno = error::InvalidVersion;
+                            self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         }
 
                         self.http_major = ch - b'0';
-                        self.state = state::ReqHttpMajor;
+                        self.state = state::State::ReqHttpMajor;
                     },
                     // major HTTP version or dot
-                    state::ReqHttpMajor => {
+                    state::State::ReqHttpMajor => {
                         if ch == b'.' {
-                            self.state = state::ReqFirstHttpMinor;
+                            self.state = state::State::ReqFirstHttpMinor;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
 
@@ -869,167 +869,167 @@ impl<T: HttpParserCallback> HttpParser {
                             self.http_major += ch - b'0';
 
                             if self.http_major > 99 {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
                         }
                     },
                     // first digit of minor HTTP version
-                    state::ReqFirstHttpMinor => {
+                    state::State::ReqFirstHttpMinor => {
                         if !is_num(ch) {
-                            self.errno = error::InvalidVersion;
+                            self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         }
 
                         self.http_minor = ch - b'0';
-                        self.state = state::ReqHttpMinor;
+                        self.state = state::State::ReqHttpMinor;
                     },
                     // minor HTTP version or end of request line
-                    state::ReqHttpMinor => {
+                    state::State::ReqHttpMinor => {
                         if ch == CR {
-                            self.state = state::ReqLineAlmostDone;
+                            self.state = state::State::ReqLineAlmostDone;
                         } else if ch == LF {
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                         } else if !is_num(ch) {
                             // XXX allow spaces after digit?
-                            self.errno = error::InvalidVersion;
+                            self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         } else {
                             self.http_minor *= 10;
                             self.http_minor += ch - b'0';
 
                             if self.http_minor > 99 {
-                                self.errno = error::InvalidVersion;
+                                self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
                         }
                     },
                     // end of request line
-                    state::ReqLineAlmostDone => {
+                    state::State::ReqLineAlmostDone => {
                         if ch != LF {
-                            self.errno = error::LFExpected;
+                            self.errno = error::HttpErrno::LFExpected;
                             return index;
                         }
 
-                        self.state = state::HeaderFieldStart;
+                        self.state = state::State::HeaderFieldStart;
                     },
-                    state::HeaderFieldStart => {
+                    state::State::HeaderFieldStart => {
                         if ch == CR {
-                            self.state = state::HeadersAlmostDone;
+                            self.state = state::State::HeadersAlmostDone;
                         } else if ch == LF {
                             // they might be just sending \n instead of \r\n,
                             // so this would be the second \n to denote
                             // the end of headers
-                            self.state = state::HeadersAlmostDone;
+                            self.state = state::State::HeadersAlmostDone;
                             retry = true;
                         } else {
                             let c : Option<u8> = token(ch);
 
                             if c.is_none() {
-                                self.errno = error::InvalidHeaderToken;
+                                self.errno = error::HttpErrno::InvalidHeaderToken;
                                 return index;
                             }
 
                             mark!(header_field_mark, index);
                             
                             self.index = 0;
-                            self.state = state::HeaderField;
+                            self.state = state::State::HeaderField;
 
                             match c.unwrap() {
-                                b'c' => self.header_state = state::C,
-                                b'p' => self.header_state = state::MatchingProxyConnection,
-                                b't' => self.header_state = state::MatchingTransferEncoding,
-                                b'u' => self.header_state = state::MatchingUpgrade,
-                                _    => self.header_state = state::General,
+                                b'c' => self.header_state = state::HeaderState::C,
+                                b'p' => self.header_state = state::HeaderState::MatchingProxyConnection,
+                                b't' => self.header_state = state::HeaderState::MatchingTransferEncoding,
+                                b'u' => self.header_state = state::HeaderState::MatchingUpgrade,
+                                _    => self.header_state = state::HeaderState::General,
                             }
                         }
                     },
-                    state::HeaderField => {
+                    state::State::HeaderField => {
                         let c_opt : Option<u8> = token(ch);
                         if c_opt.is_some() {
                             let c : u8 = c_opt.unwrap();
                             match self.header_state {
-                                state::General => (),
-                                state::C => {
+                                state::HeaderState::General => (),
+                                state::HeaderState::C => {
                                     self.index += 1;
                                     self.header_state = if c == b'o'{ 
-                                        state::CO 
+                                        state::HeaderState::CO 
                                     } else {
-                                        state::General
+                                        state::HeaderState::General
                                     };
                                 },
-                                state::CO => {
+                                state::HeaderState::CO => {
                                     self.index += 1;
                                     self.header_state = if c == b'n' {
-                                        state::CON
+                                        state::HeaderState::CON
                                     } else {
-                                        state::General
+                                        state::HeaderState::General
                                     };
                                 },
-                                state::CON => {
+                                state::HeaderState::CON => {
                                     self.index += 1;
                                     match c {
-                                        b'n' => self.header_state = state::MatchingConnection,
-                                        b't' => self.header_state = state::MatchingContentLength,
-                                        _    => self.header_state = state::General,
+                                        b'n' => self.header_state = state::HeaderState::MatchingConnection,
+                                        b't' => self.header_state = state::HeaderState::MatchingContentLength,
+                                        _    => self.header_state = state::HeaderState::General,
                                     }
                                 },
                                 // connection
-                                state::MatchingConnection => {
+                                state::HeaderState::MatchingConnection => {
                                     self.index += 1;
                                     if self.index >= CONNECTION.len() ||
                                         c != (CONNECTION.char_at(self.index) as u8) {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     } else if self.index == CONNECTION.len()-1 {
-                                        self.header_state = state::Connection;
+                                        self.header_state = state::HeaderState::Connection;
                                     }
                                 },
                                 // proxy-connection
-                                state::MatchingProxyConnection => {
+                                state::HeaderState::MatchingProxyConnection => {
                                     self.index += 1;
                                     if self.index >= PROXY_CONNECTION.len() ||
                                         c != (PROXY_CONNECTION.char_at(self.index) as u8) {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     } else if self.index == PROXY_CONNECTION.len()-1 {
-                                        self.header_state = state::Connection;
+                                        self.header_state = state::HeaderState::Connection;
                                     }
                                 },
                                 // content-length
-                                state::MatchingContentLength => {
+                                state::HeaderState::MatchingContentLength => {
                                     self.index += 1;
                                     if self.index >= CONTENT_LENGTH.len() ||
                                         c != (CONTENT_LENGTH.char_at(self.index) as u8) {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     } else if self.index == CONTENT_LENGTH.len()-1 {
-                                        self.header_state = state::ContentLength;
+                                        self.header_state = state::HeaderState::ContentLength;
                                     }
                                 },
                                 // transfer-encoding
-                                state::MatchingTransferEncoding => {
+                                state::HeaderState::MatchingTransferEncoding => {
                                     self.index += 1;
                                     if self.index >= TRANSFER_ENCODING.len() ||
                                         c != (TRANSFER_ENCODING.char_at(self.index) as u8) {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     } else if self.index == TRANSFER_ENCODING.len()-1 {
-                                        self.header_state = state::TransferEncoding;
+                                        self.header_state = state::HeaderState::TransferEncoding;
                                     }
                                 },
                                 // upgrade
-                                state::MatchingUpgrade => {
+                                state::HeaderState::MatchingUpgrade => {
                                     self.index += 1;
                                     if self.index >= UPGRADE.len() ||
                                         c != (UPGRADE.char_at(self.index) as u8) {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     } else if self.index == UPGRADE.len()-1 {
-                                        self.header_state = state::Upgrade;
+                                        self.header_state = state::HeaderState::Upgrade;
                                     }
                                 },
-                                state::Connection |
-                                state::ContentLength |
-                                state::TransferEncoding |
-                                state::Upgrade => {
+                                state::HeaderState::Connection |
+                                state::HeaderState::ContentLength |
+                                state::HeaderState::TransferEncoding |
+                                state::HeaderState::Upgrade => {
                                     if ch != b' ' {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     }
                                 },
                                 _ => {
@@ -1037,96 +1037,96 @@ impl<T: HttpParserCallback> HttpParser {
                                 }
                             }
                         } else if ch == b':' {
-                            self.state = state::HeaderValueDiscardWs;
+                            self.state = state::State::HeaderValueDiscardWs;
                             assert_ok!(self);
                             callback_data!(self, header_field_mark,
                                 cb.on_header_field(data, header_field_mark.unwrap(), index - header_field_mark.unwrap()),
-                                error::CBHeaderField, index+1);
+                                error::HttpErrno::CBHeaderField, index+1);
                         } else {
-                            self.errno = error::InvalidHeaderToken;
+                            self.errno = error::HttpErrno::InvalidHeaderToken;
                             return index;
                         }
                     },
-                    state::HeaderValueDiscardWs if ch == b' ' || ch == b'\t' ||
+                    state::State::HeaderValueDiscardWs if ch == b' ' || ch == b'\t' ||
                         ch == CR || ch == LF => {
                         if ch == b' ' || ch == b'\t' {
                             ;
                         } else if ch == CR {
-                            self.state = state::HeaderValueDiscardWsAlmostDone;
+                            self.state = state::State::HeaderValueDiscardWsAlmostDone;
                         } else if ch == LF {
-                            self.state = state::HeaderValueDiscardLws;
+                            self.state = state::State::HeaderValueDiscardLws;
                         }
                     },
-                    state::HeaderValueDiscardWs |
-                    state::HeaderValueStart => {
+                    state::State::HeaderValueDiscardWs |
+                    state::State::HeaderValueStart => {
                         mark!(header_value_mark, index);
 
-                        self.state = state::HeaderValue;
+                        self.state = state::State::HeaderValue;
                         self.index = 0;
                         
                         let c : u8 = lower(ch);
 
                         match self.header_state {
-                            state::Upgrade => {
+                            state::HeaderState::Upgrade => {
                                 self.flags |= flags::flags::UPGRADE;
-                                self.header_state = state::General;
+                                self.header_state = state::HeaderState::General;
                             },
-                            state::TransferEncoding => {
+                            state::HeaderState::TransferEncoding => {
                                 // looking for 'Transfer-Encoding: chunked
                                 if c == b'c' {
-                                    self.header_state = state::MatchingTransferEncodingChunked;
+                                    self.header_state = state::HeaderState::MatchingTransferEncodingChunked;
                                 } else {
-                                    self.header_state = state::General;
+                                    self.header_state = state::HeaderState::General;
                                 }
                             },
-                            state::ContentLength => {
+                            state::HeaderState::ContentLength => {
                                 if !is_num(ch) {
-                                    self.errno = error::InvalidContentLength;
+                                    self.errno = error::HttpErrno::InvalidContentLength;
                                     return index;
                                 }
 
                                 self.content_length = (ch - b'0') as u64;
                             },
-                            state::Connection => {
+                            state::HeaderState::Connection => {
                                 // looking for 'Connection: keep-alive
                                 if c == b'k' {
-                                    self.header_state = state::MatchingConnectionKeepAlive;
+                                    self.header_state = state::HeaderState::MatchingConnectionKeepAlive;
                                 // looking for 'Connection: close
                                 } else if c == b'c' {
-                                    self.header_state = state::MatchingConnectionClose;
+                                    self.header_state = state::HeaderState::MatchingConnectionClose;
                                 } else {
-                                    self.header_state = state::General;
+                                    self.header_state = state::HeaderState::General;
                                 }
                             },
-                            _ => self.header_state = state::General,
+                            _ => self.header_state = state::HeaderState::General,
                         }
                     },
-                    state::HeaderValue => {
+                    state::State::HeaderValue => {
                         if ch == CR {
-                            self.state = state::HeaderAlmostDone;
+                            self.state = state::State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
-                                error::CBHeaderValue, index+1);
+                                error::HttpErrno::CBHeaderValue, index+1);
                         } else if ch == LF {
-                            self.state = state::HeaderAlmostDone;
+                            self.state = state::State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
-                                error::CBHeaderValue, index);
+                                error::HttpErrno::CBHeaderValue, index);
                             retry = true;
                         } else {
                             let c : u8 = lower(ch);
 
                             match self.header_state {
-                                state::General => (),
-                                state::Connection | state::TransferEncoding => {
+                                state::HeaderState::General => (),
+                                state::HeaderState::Connection | state::HeaderState::TransferEncoding => {
                                     assert!(false, "Shouldn't get here.");
                                 },
-                                state::ContentLength => {
+                                state::HeaderState::ContentLength => {
                                     if ch != b' ' {
                                         if !is_num(ch) {
-                                            self.errno = error::InvalidContentLength;
+                                            self.errno = error::HttpErrno::InvalidContentLength;
                                             return index;
                                         }
 
@@ -1137,7 +1137,7 @@ impl<T: HttpParserCallback> HttpParser {
                                         // Overflow? Test against a conservative
                                         // limit for simplicity
                                         if (ULLONG_MAX - 10) / 10 < self.content_length {
-                                            self.errno = error::InvalidContentLength;
+                                            self.errno = error::HttpErrno::InvalidContentLength;
                                             return index;
                                         }
 
@@ -1145,96 +1145,96 @@ impl<T: HttpParserCallback> HttpParser {
                                     }
                                 },
                                 // Transfer-Encoding: chunked
-                                state::MatchingTransferEncodingChunked => {
+                                state::HeaderState::MatchingTransferEncodingChunked => {
                                     self.index += 1;
                                     if self.index >= CHUNKED.len() ||
                                         c != (CHUNKED.char_at(self.index) as u8) {
-                                            self.header_state = state::General;
+                                            self.header_state = state::HeaderState::General;
                                     } else if self.index == CHUNKED.len()-1 {
-                                        self.header_state = state::TransferEncodingChunked;
+                                        self.header_state = state::HeaderState::TransferEncodingChunked;
                                     }
                                 },
                                 // looking for 'Connection: keep-alive
-                                state::MatchingConnectionKeepAlive => {
+                                state::HeaderState::MatchingConnectionKeepAlive => {
                                     self.index += 1;
                                     if self.index >= KEEP_ALIVE.len() ||
                                         c != (KEEP_ALIVE.char_at(self.index) as u8) {
-                                            self.header_state = state::General;
+                                            self.header_state = state::HeaderState::General;
                                     } else if self.index == KEEP_ALIVE.len()-1 {
-                                        self.header_state = state::ConnectionKeepAlive;
+                                        self.header_state = state::HeaderState::ConnectionKeepAlive;
                                     }
                                 }
                                 // looking for 'Connection: close
-                                state::MatchingConnectionClose => {
+                                state::HeaderState::MatchingConnectionClose => {
                                     self.index += 1;
                                     if self.index >= CLOSE.len() ||
                                         c != (CLOSE.char_at(self.index) as u8) {
-                                            self.header_state = state::General;
+                                            self.header_state = state::HeaderState::General;
                                     } else if self.index == CLOSE.len()-1 {
-                                        self.header_state = state::ConnectionClose;
+                                        self.header_state = state::HeaderState::ConnectionClose;
                                     }
                                 },
-                                state::TransferEncodingChunked |
-                                state::ConnectionKeepAlive |
-                                state::ConnectionClose => {
+                                state::HeaderState::TransferEncodingChunked |
+                                state::HeaderState::ConnectionKeepAlive |
+                                state::HeaderState::ConnectionClose => {
                                     if ch != b' ' {
-                                        self.header_state = state::General;
+                                        self.header_state = state::HeaderState::General;
                                     }
                                 },
                                 _ => {
-                                    self.state = state::HeaderValue;
-                                    self.header_state = state::General;
+                                    self.state = state::State::HeaderValue;
+                                    self.header_state = state::HeaderState::General;
                                 }
                             }
                         }
                     },
-                    state::HeaderAlmostDone => {
+                    state::State::HeaderAlmostDone => {
                         strict_check!(self, ch != LF, index);
 
-                        self.state = state::HeaderValueLws;
+                        self.state = state::State::HeaderValueLws;
                     },
-                    state::HeaderValueLws => {
+                    state::State::HeaderValueLws => {
                         if ch == b' ' || ch == b'\t' {
-                            self.state = state::HeaderValueStart;
+                            self.state = state::State::HeaderValueStart;
                             retry = true;
                         } else {
                             // finished the header
                             match self.header_state {
-                                state::ConnectionKeepAlive => {
+                                state::HeaderState::ConnectionKeepAlive => {
                                     self.flags |= flags::flags::CONNECTION_KEEP_ALIVE;
                                 },
-                                state::ConnectionClose => {
+                                state::HeaderState::ConnectionClose => {
                                     self.flags |= flags::flags::CONNECTION_CLOSE;
                                 },
-                                state::TransferEncodingChunked => {
+                                state::HeaderState::TransferEncodingChunked => {
                                     self.flags != flags::flags::CHUNKED;
                                 },
                                 _ => (),
                             }
 
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                             retry = true;
                         }
                     },
-                    state::HeaderValueDiscardWsAlmostDone => {
+                    state::State::HeaderValueDiscardWsAlmostDone => {
                         strict_check!(self, ch != LF, index);
-                        self.state = state::HeaderValueDiscardWs;
+                        self.state = state::State::HeaderValueDiscardWs;
                     },
-                    state::HeaderValueDiscardLws => {
+                    state::State::HeaderValueDiscardLws => {
                         if ch == b' ' || ch == b'\t' {
-                            self.state = state::HeaderValueDiscardWs;
+                            self.state = state::State::HeaderValueDiscardWs;
                         } else {
                             // header value was empty
                             mark!(header_value_mark, index);
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
-                                error::CBHeaderValue, index);
+                                error::HttpErrno::CBHeaderValue, index);
                             retry = true;
                         }
                     },
-                    state::HeadersAlmostDone => {
+                    state::State::HeadersAlmostDone => {
                         strict_check!(self, ch != LF, index);
 
                         if (self.flags & flags::flags::TRAILING) > 0 {
@@ -1242,17 +1242,17 @@ impl<T: HttpParserCallback> HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(), 
-                                      error::CBMessageComplete);
-                            if self.errno != error::Ok {
+                                      error::HttpErrno::CBMessageComplete);
+                            if self.errno != error::HttpErrno::Ok {
                                 return index+1;
                             }
                         } else {
-                            self.state = state::HeadersDone;
+                            self.state = state::State::HeadersDone;
 
                             // Set this here so that on_headers_complete()
                             // callbacks can see it
                             self.upgrade = (self.flags & flags::flags::UPGRADE != 0) ||
-                                self.method == http_method::Connect;
+                                self.method == http_method::HttpMethod::Connect;
 
                             // Here we call the headers_complete callback. This is somewhat
                             // different than other callbacks because if the user returns 1, we
@@ -1269,18 +1269,18 @@ impl<T: HttpParserCallback> HttpParser {
                                 Ok(0) => (),
                                 Ok(1) => self.flags |= flags::flags::SKIPBODY,
                                 _     => {
-                                    self.errno = error::CBHeadersComplete;
+                                    self.errno = error::HttpErrno::CBHeadersComplete;
                                     return index; // Error
                                 },
                             }
 
-                            if self.errno != error::Ok {
+                            if self.errno != error::HttpErrno::Ok {
                                 return index;
                             }
                             retry = true;
                         }
                     },
-                    state::HeadersDone => {
+                    state::State::HeadersDone => {
                         strict_check!(self, ch != LF, index);
                         self.nread = 0;
 
@@ -1289,8 +1289,8 @@ impl<T: HttpParserCallback> HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(), 
-                                      error::CBMessageComplete);
-                            if self.errno != error::Ok {
+                                      error::HttpErrno::CBMessageComplete);
+                            if self.errno != error::HttpErrno::Ok {
                                 return index+1;
                             }
                             return index+1;
@@ -1300,45 +1300,45 @@ impl<T: HttpParserCallback> HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(), 
-                                      error::CBMessageComplete);
-                            if self.errno != error::Ok {
+                                      error::HttpErrno::CBMessageComplete);
+                            if self.errno != error::HttpErrno::Ok {
                                 return index+1;
                             }
                         } else if (self.flags & flags::flags::CHUNKED) != 0 {
                             // chunked encoding - ignore Content-Length header
-                            self.state = state::ChunkSizeStart;
+                            self.state = state::State::ChunkSizeStart;
                         } else {
                             if self.content_length == 0 {
                                 // Content-Length header given but zero: Content-Length: 0\r\n
                                 self.state = new_message!(self);
                                 assert_ok!(self);
                                 callback!(self, cb.on_message_complete(), 
-                                          error::CBMessageComplete);
-                                if self.errno != error::Ok {
+                                          error::HttpErrno::CBMessageComplete);
+                                if self.errno != error::HttpErrno::Ok {
                                     return index+1;
                                 }
                             } else if self.content_length != ULLONG_MAX {
                                 // Content-Length header given and non-zero
-                                self.state = state::BodyIdentity;
+                                self.state = state::State::BodyIdentity;
                             } else {
-                                if self.tp == HttpRequest ||
+                                if self.tp == HttpParserType::HttpRequest ||
                                     !self.http_message_needs_eof() {
                                     // Assume content-length 0 - read the next
                                     self.state = new_message!(self);
                                     assert_ok!(self);
                                     callback!(self, cb.on_message_complete(), 
-                                              error::CBMessageComplete);
-                                    if self.errno != error::Ok {
+                                              error::HttpErrno::CBMessageComplete);
+                                    if self.errno != error::HttpErrno::Ok {
                                         return index+1;
                                     }
                                 } else {
                                     // Read body until EOF
-                                    self.state = state::BodyIdentityEof;
+                                    self.state = state::State::BodyIdentityEof;
                                 }
                             }
                         }
                     },
-                    state::BodyIdentity => {
+                    state::State::BodyIdentity => {
                         let to_read : u64 = cmp::min(self.content_length,
                                                     (len - index) as u64);
                         assert!(self.content_length != 0 &&
@@ -1354,7 +1354,7 @@ impl<T: HttpParserCallback> HttpParser {
                         index += to_read - 1;
 
                         if self.content_length == 0 {
-                            self.state = state::MessageDone;
+                            self.state = state::State::MessageDone;
 
                             // Mimic CALLBACK_DATA_NOADVANCE() but with one extra byte.
                             //
@@ -1367,49 +1367,49 @@ impl<T: HttpParserCallback> HttpParser {
                             assert_ok!(self);
                             callback_data!(self, body_mark,
                                 cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap() + 1),
-                                error::CBBody, index);
+                                error::HttpErrno::CBBody, index);
                             retry = true;
                         }
                     },
                     // read until EOF
-                    state::BodyIdentityEof => {
+                    state::State::BodyIdentityEof => {
                         mark!(body_mark, index);
                         index = len - 1;
                     },
-                    state::MessageDone => {
+                    state::State::MessageDone => {
                         self.state = new_message!(self);
                         assert_ok!(self);
                         callback!(self, cb.on_message_complete(), 
-                                  error::CBMessageComplete);
-                        if self.errno != error::Ok {
+                                  error::HttpErrno::CBMessageComplete);
+                        if self.errno != error::HttpErrno::Ok {
                             return index+1;
                         }
                     },
-                    state::ChunkSizeStart => {
+                    state::State::ChunkSizeStart => {
                         assert!(self.nread == 1);
                         assert!(self.flags & flags::flags::CHUNKED != 0);
 
                         let unhex_val : i8 = UNHEX[ch as uint];
                         if unhex_val == -1 {
-                            self.errno = error::InvalidChunkSize;
+                            self.errno = error::HttpErrno::InvalidChunkSize;
                             return index;
                         }
 
                         self.content_length = unhex_val as u64;
-                        self.state = state::ChunkSize;
+                        self.state = state::State::ChunkSize;
                     },
-                    state::ChunkSize => {
+                    state::State::ChunkSize => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
 
                         if ch == CR {
-                            self.state = state::ChunkSizeAlmostDone;
+                            self.state = state::State::ChunkSizeAlmostDone;
                         } else {
                             let unhex_val : i8 = UNHEX[ch as uint];
                             if unhex_val == -1 {
                                 if ch == b';' || ch == b' ' {
-                                    self.state = state::ChunkParameters;
+                                    self.state = state::State::ChunkParameters;
                                 } else {
-                                    self.errno = error::InvalidChunkSize;
+                                    self.errno = error::HttpErrno::InvalidChunkSize;
                                     return index;
                                 }
                             }
@@ -1420,21 +1420,21 @@ impl<T: HttpParserCallback> HttpParser {
 
                             // Overflow? Test against a conservative limit for simplicity
                             if (ULLONG_MAX - 16)/16 < self.content_length {
-                                self.errno = error::InvalidContentLength;
+                                self.errno = error::HttpErrno::InvalidContentLength;
                                 return index;
                             }
 
                             self.content_length = t;
                         }
                     },
-                    state::ChunkParameters => {
+                    state::State::ChunkParameters => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
                         // just ignore this shit. TODO check for overflow
                         if ch == CR {
-                            self.state = state::ChunkSizeAlmostDone;
+                            self.state = state::State::ChunkSizeAlmostDone;
                         }
                     },
-                    state::ChunkSizeAlmostDone => {
+                    state::State::ChunkSizeAlmostDone => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
                         strict_check!(self, ch != LF, index);
 
@@ -1442,12 +1442,12 @@ impl<T: HttpParserCallback> HttpParser {
 
                         if self.content_length == 0 {
                             self.flags |= flags::flags::TRAILING;
-                            self.state = state::HeaderFieldStart;
+                            self.state = state::State::HeaderFieldStart;
                         } else {
-                            self.state = state::ChunkData;
+                            self.state = state::State::ChunkData;
                         }
                     },
-                    state::ChunkData => {
+                    state::State::ChunkData => {
                         let to_read : u64 = cmp::min(self.content_length,
                                                          len - index);
                         assert!(self.flags & flags::flags::CHUNKED != 0);
@@ -1461,29 +1461,29 @@ impl<T: HttpParserCallback> HttpParser {
                         index += to_read - 1;
 
                         if self.content_length == 0 {
-                            self.state = state::ChunkDataAlmostDone;
+                            self.state = state::State::ChunkDataAlmostDone;
                         }
                     },
-                    state::ChunkDataAlmostDone => {
+                    state::State::ChunkDataAlmostDone => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
                         assert!(self.content_length == 0);
                         strict_check!(self, ch != CR, index);
-                        self.state = state::ChunkDataDone;
+                        self.state = state::State::ChunkDataDone;
 
                         assert_ok!(self);
                         callback_data!(self, body_mark,
                             cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
-                            error::CBBody, index+1);
+                            error::HttpErrno::CBBody, index+1);
                     },
-                    state::ChunkDataDone => {
+                    state::State::ChunkDataDone => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
                         strict_check!(self, ch != LF, index);
                         self.nread = 0;
-                        self.state = state::ChunkSizeStart;
+                        self.state = state::State::ChunkSizeStart;
                     },
                     //_ => {
                     //    assert!(false, "unhandled state");
-                    //    self.errno = error::InvalidInternalState;
+                    //    self.errno = error::HttpErrno::InvalidInternalState;
                     //    return index;
                     //},
                 }
@@ -1511,19 +1511,19 @@ impl<T: HttpParserCallback> HttpParser {
 
         callback_data!(self, header_field_mark,
             cb.on_header_field(data, header_field_mark.unwrap(), index - header_field_mark.unwrap()),
-            error::CBHeaderField, index);
+            error::HttpErrno::CBHeaderField, index);
         callback_data!(self, header_value_mark,
             cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
-            error::CBHeaderValue, index);
+            error::HttpErrno::CBHeaderValue, index);
         callback_data!(self, url_mark,
             cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
-            error::CBUrl, index);
+            error::HttpErrno::CBUrl, index);
         callback_data!(self, body_mark,
             cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
-            error::CBBody, index);
+            error::HttpErrno::CBBody, index);
         callback_data!(self, status_mark,
             cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
-            error::CBStatus, index);
+            error::HttpErrno::CBStatus, index);
         len
     }
 
@@ -1531,99 +1531,99 @@ impl<T: HttpParserCallback> HttpParser {
     // Our URL parser
     fn parse_url_char(s : state::State, ch : u8) -> state::State {
         if ch == b' ' || ch == b'\r' || ch == b'\n' {
-            return state::Dead;
+            return state::State::Dead;
         }
 
         if HTTP_PARSER_STRICT {
             if ch == b'\t' || ch == b'\x0C' {   // '\x0C' = '\f' 
-                return state::Dead;
+                return state::State::Dead;
             }
         }
 
         match s {
-            state::ReqSpacesBeforeUrl => {
+            state::State::ReqSpacesBeforeUrl => {
                 // Proxied requests are followed by scheme of an absolute URI (alpha).
                 // All methods except CONNECT are followed by '/' or '*'.
 
                 if ch == b'/' || ch == b'*' {
-                    return state::ReqPath;
+                    return state::State::ReqPath;
                 }
 
                 if is_alpha(ch) {
-                    return state::ReqSchema;
+                    return state::State::ReqSchema;
                 }
             },
-            state::ReqSchema => {
+            state::State::ReqSchema => {
                 if is_alpha(ch) {
                     return s;
                 }
 
                 if ch == b':' {
-                    return state::ReqSchemaSlash;
+                    return state::State::ReqSchemaSlash;
                 }
             },
-            state::ReqSchemaSlash => {
+            state::State::ReqSchemaSlash => {
                 if ch == b'/' {
-                    return state::ReqSchemaSlashSlash;
+                    return state::State::ReqSchemaSlashSlash;
                 }
             },
-            state::ReqSchemaSlashSlash => {
+            state::State::ReqSchemaSlashSlash => {
                 if ch == b'/' {
-                    return state::ReqServerStart;
+                    return state::State::ReqServerStart;
                 }
             },
-            state::ReqServerWithAt if ch == b'@' => return state::Dead,
-            state::ReqServerWithAt | state::ReqServerStart | state::ReqServer => {
+            state::State::ReqServerWithAt if ch == b'@' => return state::State::Dead,
+            state::State::ReqServerWithAt | state::State::ReqServerStart | state::State::ReqServer => {
                 if ch == b'/' {
-                    return state::ReqPath;
+                    return state::State::ReqPath;
                 }
 
                 if ch == b'?' {
-                    return state::ReqQueryStringStart;
+                    return state::State::ReqQueryStringStart;
                 }
 
                 if ch == b'@' {
-                    return state::ReqServerWithAt;
+                    return state::State::ReqServerWithAt;
                 }
 
                 if is_userinfo_char(ch) || ch == b'[' || ch == b']' {
-                    return state::ReqServer;
+                    return state::State::ReqServer;
                 }
             },
-            state::ReqPath => {
+            state::State::ReqPath => {
                 if is_url_char(ch) {
                     return s;
                 }
 
                 match ch {
-                    b'?' => return state::ReqQueryStringStart,
-                    b'#' => return state::ReqFragmentStart,
+                    b'?' => return state::State::ReqQueryStringStart,
+                    b'#' => return state::State::ReqFragmentStart,
                     _    => (),
                 }
             },
-            state::ReqQueryStringStart | state::ReqQueryString => {
+            state::State::ReqQueryStringStart | state::State::ReqQueryString => {
                 if is_url_char(ch) {
-                    return state::ReqQueryString;
+                    return state::State::ReqQueryString;
                 }
 
                 match ch {
-                    b'?' => return state::ReqQueryString, // allow extra '?' in query string
-                    b'#' => return state::ReqFragmentStart,
+                    b'?' => return state::State::ReqQueryString, // allow extra '?' in query string
+                    b'#' => return state::State::ReqFragmentStart,
                     _    => (),
                 }
             },
-            state::ReqFragmentStart => {
+            state::State::ReqFragmentStart => {
                 if is_url_char(ch) {
-                    return state::ReqFragment;
+                    return state::State::ReqFragment;
                 }
 
                 match ch {
-                    b'?' => return state::ReqFragment,
+                    b'?' => return state::State::ReqFragment,
                     b'#' => return s,
                     _    => (),
                 }
             },
-            state::ReqFragment => {
+            state::State::ReqFragment => {
                 if is_url_char(ch) {
                     return s;
                 }
@@ -1636,12 +1636,12 @@ impl<T: HttpParserCallback> HttpParser {
         }
 
         // We should never fall out of the switch above unless there's an error
-        return state::Dead;
+        return state::State::Dead;
     }
 
     // Does the parser need to see an EOF to find the end of the message?
     fn http_message_needs_eof(&self) -> bool {
-        if self.tp == HttpRequest {
+        if self.tp == HttpParserType::HttpRequest {
             return false
         }
 
