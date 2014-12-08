@@ -356,7 +356,7 @@ impl HttpParser {
         let mut body_mark : Option<u64> = None;
         let mut status_mark : Option<u64> = None;
 
-        if self.errno == error::HttpErrno::Ok {
+        if self.errno != error::HttpErrno::Ok {
             return 0;
         }
 
@@ -484,7 +484,7 @@ impl HttpParser {
                             _ => {
                                 self.errno = error::HttpErrno::InvalidConstant;
                                 return index;
-                            }
+                            },
                         }
                         
                         assert_ok!(self);
@@ -586,14 +586,14 @@ impl HttpParser {
                                     return index;
                                 }
                             }
-                        }
+                        } else {
+                            self.status_code *= 10;
+                            self.status_code += (ch - b'0') as u16;
 
-                        self.status_code *= 10;
-                        self.status_code += (ch - b'0') as u16;
-
-                        if self.status_code > 999 {
-                            self.errno = error::HttpErrno::InvalidStatus;
-                            return index;
+                            if self.status_code > 999 {
+                                self.errno = error::HttpErrno::InvalidStatus;
+                                return index;
+                            }
                         }
                     },
                     state::State::ResStatusStart => {
@@ -1678,25 +1678,7 @@ impl HttpParser {
     }
 }
 
-// for tests
+// for tests only. Should be deleted after tests are done
 pub struct CallbackEmpty;
 
 impl HttpParserCallback for CallbackEmpty {}
-
-fn main() {
-    let line : &str = "GET / HTTP/1.1\r\n";
-    test_first_line(HttpParserType::HttpRequest, line.as_bytes());
-}
-
-fn test_status_line() {
-    let line : &str = "HTTP/1.0 200 OK\r\n";
-    test_first_line(HttpParserType::HttpResponse, line.as_bytes());
-}
-
-fn test_first_line(tp : HttpParserType, data : &[u8]) {
-    let mut hp : HttpParser = HttpParser::new(tp);
-    let cb = CallbackEmpty;
-    let parsed : u64 = hp.execute(cb, data);
-    assert_eq!(parsed, data.len() as u64);
-}
-

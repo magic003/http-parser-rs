@@ -15,5 +15,5 @@ fn test_interface() {
     }
 
     let cb = Callback;
-    hp.execute(cb, [b'a', b'b', b'c']);
+    hp.execute(cb, [b'a', b'b', b'c'].as_slice());
 }
