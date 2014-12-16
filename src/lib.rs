@@ -7,10 +7,13 @@ extern crate collections;
 use std::u64;
 use std::cmp;
 
+pub use self::error::HttpErrno;
+
 mod error;
 mod state;
 mod flags;
 mod http_method;
+
 
 #[deriving(PartialEq, Eq)]
 pub enum HttpParserType {
@@ -33,7 +36,7 @@ pub struct HttpParser {
     // read-only
     http_major : u8,
     http_minor : u8,
-    errno : error::HttpErrno,
+    pub errno : error::HttpErrno,
     status_code : u16,                          // response only
     method : http_method::HttpMethod,            // request only
 
@@ -115,8 +118,8 @@ macro_rules! callback_data(
             if $parser.errno != error::HttpErrno::Ok {
                 return $idx;
             }
-            // never used. Maybe unnecessary?
-            // $mark = None;
+            // Necessary to reset mark, though it causes unused warning
+            $mark = None;
         }
     );
 )
@@ -431,6 +434,7 @@ impl HttpParser {
             // using loop to mimic 'goto reexecute_byte' in http_parser.c
             let mut retry = false;
             loop {
+                retry = false;  // reset in each loop
                 match self.state {
                     state::State::Dead => {
                         if ch != CR && ch != LF {
@@ -1679,6 +1683,56 @@ impl HttpParser {
 }
 
 // for tests only. Should be deleted after tests are done
-pub struct CallbackEmpty;
+/*pub struct CallbackEmpty;
 
 impl HttpParserCallback for CallbackEmpty {}
+
+const HEADER_LINE : &'static str = "header-key: header-value\r\n";
+
+fn main() {
+    test_request_header_overflow();
+}
+
+fn test_request_header_overflow() {
+    test_header_overflow(HttpParserType::HttpRequest);
+}
+
+fn test_header_overflow(tp: HttpParserType) {
+    let mut hp : HttpParser = HttpParser::new(tp);
+    let cb = CallbackEmpty;
+
+    before(&mut hp, cb, tp);
+
+    let len : u64 = HEADER_LINE.len() as u64;
+    let mut done = false;
+
+    while !done {
+        let parsed = hp.execute(cb, HEADER_LINE.as_bytes());
+        if parsed != len {
+            assert!(hp.errno == error::HttpErrno::HeaderOverflow);
+            done = true;
+        }
+    }
+    assert!(done);
+}
+
+fn test_header(tp : HttpParserType) {
+    let mut hp : HttpParser = HttpParser::new(tp);
+    let cb = CallbackEmpty;
+
+    before(&mut hp, cb, tp);
+
+    let data = "header-key: header-value\r\n";
+    let parsed: u64 = hp.execute(cb, data.as_bytes());
+    assert_eq!(parsed, data.len() as u64);
+}
+
+fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : CB, tp : HttpParserType) {
+    let line = if tp == HttpParserType::HttpRequest {
+        "GET / HTTP/1.1\r\n"
+    } else {
+        "HTTP/1.0 200 OK\r\n"
+    };
+    let parsed : u64 = hp.execute(cb, line.as_bytes());
+    assert_eq!(parsed, line.len() as u64);
+}*/
