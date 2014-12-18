@@ -1211,7 +1211,7 @@ impl HttpParser {
                                     self.flags |= flags::flags::CONNECTION_CLOSE;
                                 },
                                 state::HeaderState::TransferEncodingChunked => {
-                                    self.flags != flags::flags::CHUNKED;
+                                    self.flags |= flags::flags::CHUNKED;
                                 },
                                 _ => (),
                             }
@@ -1687,52 +1687,35 @@ impl HttpParser {
 
 impl HttpParserCallback for CallbackEmpty {}
 
-const HEADER_LINE : &'static str = "header-key: header-value\r\n";
 
 fn main() {
-    test_request_header_overflow();
+    test_chunk_content_length_overflow();
 }
 
-fn test_request_header_overflow() {
-    test_header_overflow(HttpParserType::HttpRequest);
+macro_rules! chunk_content(
+    ($len:expr) => (
+        format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{}\r\n...", $len);
+    );
+)
+
+fn test_chunk_content_length_overflow() {
+    let a = chunk_content!("FFFFFFFFFFFFFFE");          // 2^64 / 16 - 1
+    let b = chunk_content!("FFFFFFFFFFFFFFFF");         // 2^64 - 1
+    let c = chunk_content!("10000000000000000");        // 2^64
+
+    test_content_length_overflow(b.as_bytes(), false);
+    test_content_length_overflow(c.as_bytes(), false);
 }
 
-fn test_header_overflow(tp: HttpParserType) {
-    let mut hp : HttpParser = HttpParser::new(tp);
+fn test_content_length_overflow(data: &[u8], expect_ok: bool) {
+    let mut hp = HttpParser::new(HttpParserType::HttpResponse);
     let cb = CallbackEmpty;
 
-    before(&mut hp, cb, tp);
+    hp.execute(cb, data);
 
-    let len : u64 = HEADER_LINE.len() as u64;
-    let mut done = false;
-
-    while !done {
-        let parsed = hp.execute(cb, HEADER_LINE.as_bytes());
-        if parsed != len {
-            assert!(hp.errno == error::HttpErrno::HeaderOverflow);
-            done = true;
-        }
-    }
-    assert!(done);
-}
-
-fn test_header(tp : HttpParserType) {
-    let mut hp : HttpParser = HttpParser::new(tp);
-    let cb = CallbackEmpty;
-
-    before(&mut hp, cb, tp);
-
-    let data = "header-key: header-value\r\n";
-    let parsed: u64 = hp.execute(cb, data.as_bytes());
-    assert_eq!(parsed, data.len() as u64);
-}
-
-fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : CB, tp : HttpParserType) {
-    let line = if tp == HttpParserType::HttpRequest {
-        "GET / HTTP/1.1\r\n"
+    if expect_ok {
+        assert!(hp.errno == HttpErrno::Ok);
     } else {
-        "HTTP/1.0 200 OK\r\n"
-    };
-    let parsed : u64 = hp.execute(cb, line.as_bytes());
-    assert_eq!(parsed, line.len() as u64);
+        assert!(hp.errno == HttpErrno::InvalidContentLength);
+    }
 }*/
