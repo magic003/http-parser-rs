@@ -9,11 +9,11 @@ fn test_interface() {
     struct Callback;
 
     impl HttpParserCallback for Callback {
-        fn on_message_complete(&self) -> Result<i8, &str> {
+        fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
             Ok(1)
         }
     }
 
-    let cb = Callback;
-    hp.execute(cb, [b'a', b'b', b'c'].as_slice());
+    let mut cb = Callback;
+    hp.execute(&mut cb, [b'a', b'b', b'c'].as_slice());
 }

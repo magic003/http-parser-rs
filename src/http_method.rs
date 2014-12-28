@@ -1,4 +1,4 @@
-#[deriving(PartialEq, Eq )]
+#[deriving(PartialEq, Eq, Copy)]
 pub enum HttpMethod {
     Delete,
     Get,

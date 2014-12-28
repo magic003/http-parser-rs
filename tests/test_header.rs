@@ -29,25 +29,25 @@ fn test_response_header_overflow() {
 
 fn test_header(tp : HttpParserType) {
     let mut hp : HttpParser = HttpParser::new(tp);
-    let cb = helper::CallbackEmpty;
+    let mut cb = helper::CallbackEmpty;
 
-    before(&mut hp, cb, tp);
+    before(&mut hp, &mut cb, tp);
 
-    let parsed: u64 = hp.execute(cb, HEADER_LINE.as_bytes());
+    let parsed: u64 = hp.execute(&mut cb, HEADER_LINE.as_bytes());
     assert_eq!(parsed, HEADER_LINE.len() as u64);
 }
 
 fn test_header_overflow(tp: HttpParserType) {
     let mut hp : HttpParser = HttpParser::new(tp);
-    let cb = helper::CallbackEmpty;
+    let mut cb = helper::CallbackEmpty;
 
-    before(&mut hp, cb, tp);
+    before(&mut hp, &mut cb, tp);
 
     let len : u64 = HEADER_LINE.len() as u64;
     let mut done = false;
 
     while !done {
-        let parsed = hp.execute(cb, HEADER_LINE.as_bytes());
+        let parsed = hp.execute(&mut cb, HEADER_LINE.as_bytes());
         if parsed != len {
             assert!(hp.errno == HttpErrno::HeaderOverflow);
             done = true;
@@ -56,7 +56,7 @@ fn test_header_overflow(tp: HttpParserType) {
     assert!(done);
 }
 
-fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : CB, tp : HttpParserType) {
+fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : &mut CB, tp : HttpParserType) {
     let line = if tp == HttpParserType::HttpRequest {
         "GET / HTTP/1.1\r\n"
     } else {

@@ -19,7 +19,7 @@ fn test_status_line() {
 
 fn test_first_line(tp : HttpParserType, data : &[u8]) {
     let mut hp : HttpParser = HttpParser::new(tp);
-    let cb = helper::CallbackEmpty;
-    let parsed : u64 = hp.execute(cb, data);
+    let mut cb = helper::CallbackEmpty;
+    let parsed : u64 = hp.execute(&mut cb, data);
     assert_eq!(parsed, data.len() as u64);
 }

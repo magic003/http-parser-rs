@@ -7,7 +7,12 @@ extern crate collections;
 use std::u64;
 use std::cmp;
 
+// for tests
+use std::str;
+use std::default::Default;
+
 pub use self::error::HttpErrno;
+pub use self::http_method::HttpMethod;
 
 mod error;
 mod state;
@@ -15,7 +20,7 @@ mod flags;
 mod http_method;
 
 
-#[deriving(PartialEq, Eq)]
+#[deriving(PartialEq, Eq, Copy)]
 pub enum HttpParserType {
     HttpRequest,
     HttpResponse,
@@ -34,50 +39,50 @@ pub struct HttpParser {
     content_length : u64,   // bytes in body (0 if no Content-Length header
     
     // read-only
-    http_major : u8,
-    http_minor : u8,
+    pub http_major : u8,
+    pub http_minor : u8,
     pub errno : error::HttpErrno,
-    status_code : u16,                          // response only
-    method : http_method::HttpMethod,            // request only
+    pub status_code : u16,                          // response only
+    pub method : http_method::HttpMethod,            // request only
 
-    upgrade : bool,
+    pub upgrade : bool,
 }
 
 pub trait HttpParserCallback {
-    fn on_message_begin(&self) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_url(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &HttpParser, data : &[u8],) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_status(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_header_field(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_header_value(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_headers_complete(&self) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_body(&self, buff : &[u8], start : u64, length : u64) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_message_complete(&self) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 }
@@ -90,13 +95,13 @@ macro_rules! ensure_error(
             $parser.errno = error::HttpErrno::Unknown;
         }
     );
-)
+);
 
 macro_rules! assert_ok(
     ($parser:ident) => (
         assert!($parser.errno == error::HttpErrno::Ok);
     );
-)
+);
 
 macro_rules! callback(
     ($parser:ident, $cb:expr, $err:expr) => (
@@ -105,7 +110,7 @@ macro_rules! callback(
            _ => (),
        }
     );
-)
+);
 
 macro_rules! callback_data(
     ($parser:ident, $mark:ident, $cb:expr, $err:expr, $idx:expr) => (
@@ -122,7 +127,8 @@ macro_rules! callback_data(
             $mark = None;
         }
     );
-)
+);
+
 macro_rules! start_state(
     ($parser:ident) => (
         if $parser.tp == HttpParserType::HttpRequest {
@@ -131,7 +137,7 @@ macro_rules! start_state(
             state::State::StartRes
         }
     );
-)
+);
 
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
@@ -140,7 +146,7 @@ macro_rules! strict_check(
             return $idx;
         }
     );
-)
+);
 
 macro_rules! new_message(
     ($parser:ident) => (
@@ -154,7 +160,7 @@ macro_rules! new_message(
             start_state!($parser)
         }
     );
-)
+);
 
 macro_rules! mark(
     ($mark:ident, $idx:expr) => (
@@ -162,7 +168,7 @@ macro_rules! mark(
             $mark = Some($idx);
         }
     );
-)
+);
 
 const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
 const ULLONG_MAX : u64 = u64::MAX - 1;
@@ -350,7 +356,7 @@ impl HttpParser {
         }
     }
 
-    pub fn execute<T: HttpParserCallback>(&mut self, cb : T, data : &[u8]) -> u64 {
+    pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> u64 {
         let mut index : u64 = 0;
         let len : u64 = data.len() as u64;
         let mut header_field_mark : Option<u64> = None;
@@ -367,7 +373,7 @@ impl HttpParser {
             match self.state {
                 state::State::BodyIdentityEof => {
                     assert_ok!(self);
-                    callback!(self, cb.on_message_complete(), 
+                    callback!(self, cb.on_message_complete(self), 
                               error::HttpErrno::CBMessageComplete);
                     if self.errno != error::HttpErrno::Ok {
                         return index;
@@ -409,7 +415,8 @@ impl HttpParser {
             _ => (),
         }
 
-        for &ch in data.iter() {
+        while index < len {
+            let ch = data[index as uint];
             if self.state <= state::State::HeadersDone {
                 self.nread += 1;
 
@@ -450,7 +457,7 @@ impl HttpParser {
                             if ch == b'H' {
                                 self.state = state::State::ResOrRespH;
                                 assert_ok!(self);
-                                callback!(self, cb.on_message_begin(),
+                                callback!(self, cb.on_message_begin(self),
                                     error::HttpErrno::CBMessageBegin);
                                 if self.errno != error::HttpErrno::Ok {
                                     return index+1;
@@ -492,7 +499,7 @@ impl HttpParser {
                         }
                         
                         assert_ok!(self);
-                        callback!(self, cb.on_message_begin(), 
+                        callback!(self, cb.on_message_begin(self), 
                                   error::HttpErrno::CBMessageBegin);
                         if self.errno != error::HttpErrno::Ok {
                             return index+1;
@@ -616,13 +623,13 @@ impl HttpParser {
                             self.state = state::State::ResLineAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
-                                cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
+                                cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBStatus, index+1);
                         } else if ch == LF {
                             self.state = state::State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
-                                cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
+                                cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBStatus, index+1);
                         }
                     },
@@ -663,8 +670,8 @@ impl HttpParser {
                             }
                             self.state = state::State::ReqMethod;
 
-                            assert_ok!(self)
-                            callback!(self, cb.on_message_begin(), 
+                            assert_ok!(self);
+                            callback!(self, cb.on_message_begin(self), 
                                       error::HttpErrno::CBMessageBegin);
                             if self.errno != error::HttpErrno::Ok {
                                 return index+1;
@@ -798,7 +805,7 @@ impl HttpParser {
                                 self.state = state::State::ReqHttpStart;
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
-                                    cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
+                                    cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
                                     error::HttpErrno::CBUrl, index+1);
                             },
                             CR | LF => {
@@ -811,7 +818,7 @@ impl HttpParser {
                                 };
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
-                                    cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
+                                    cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
                                     error::HttpErrno::CBUrl, index+1);
                             },
                             _ => {
@@ -1044,7 +1051,7 @@ impl HttpParser {
                             self.state = state::State::HeaderValueDiscardWs;
                             assert_ok!(self);
                             callback_data!(self, header_field_mark,
-                                cb.on_header_field(data, header_field_mark.unwrap(), index - header_field_mark.unwrap()),
+                                cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBHeaderField, index+1);
                         } else {
                             self.errno = error::HttpErrno::InvalidHeaderToken;
@@ -1110,13 +1117,13 @@ impl HttpParser {
                             self.state = state::State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBHeaderValue, index+1);
                         } else if ch == LF {
                             self.state = state::State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBHeaderValue, index);
                             retry = true;
                         } else {
@@ -1233,7 +1240,7 @@ impl HttpParser {
                             self.state = state::State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
                                 error::HttpErrno::CBHeaderValue, index);
                             retry = true;
                         }
@@ -1245,7 +1252,7 @@ impl HttpParser {
                             // End of a chunked request
                             self.state = new_message!(self);
                             assert_ok!(self);
-                            callback!(self, cb.on_message_complete(), 
+                            callback!(self, cb.on_message_complete(self), 
                                       error::HttpErrno::CBMessageComplete);
                             if self.errno != error::HttpErrno::Ok {
                                 return index+1;
@@ -1269,7 +1276,7 @@ impl HttpParser {
                             // we have to simulate it by handling a change in errno below.
                             //
                             // TODO can we handle this in our case?
-                            match cb.on_headers_complete() {
+                            match cb.on_headers_complete(self) {
                                 Ok(0) => (),
                                 Ok(1) => self.flags |= flags::flags::SKIPBODY,
                                 _     => {
@@ -1292,7 +1299,7 @@ impl HttpParser {
                         if self.upgrade {
                             self.state = new_message!(self);
                             assert_ok!(self);
-                            callback!(self, cb.on_message_complete(), 
+                            callback!(self, cb.on_message_complete(self), 
                                       error::HttpErrno::CBMessageComplete);
                             if self.errno != error::HttpErrno::Ok {
                                 return index+1;
@@ -1303,7 +1310,7 @@ impl HttpParser {
                         if (self.flags & flags::flags::SKIPBODY) != 0 {
                             self.state = new_message!(self);
                             assert_ok!(self);
-                            callback!(self, cb.on_message_complete(), 
+                            callback!(self, cb.on_message_complete(self), 
                                       error::HttpErrno::CBMessageComplete);
                             if self.errno != error::HttpErrno::Ok {
                                 return index+1;
@@ -1316,7 +1323,7 @@ impl HttpParser {
                                 // Content-Length header given but zero: Content-Length: 0\r\n
                                 self.state = new_message!(self);
                                 assert_ok!(self);
-                                callback!(self, cb.on_message_complete(), 
+                                callback!(self, cb.on_message_complete(self), 
                                           error::HttpErrno::CBMessageComplete);
                                 if self.errno != error::HttpErrno::Ok {
                                     return index+1;
@@ -1330,7 +1337,7 @@ impl HttpParser {
                                     // Assume content-length 0 - read the next
                                     self.state = new_message!(self);
                                     assert_ok!(self);
-                                    callback!(self, cb.on_message_complete(), 
+                                    callback!(self, cb.on_message_complete(self), 
                                               error::HttpErrno::CBMessageComplete);
                                     if self.errno != error::HttpErrno::Ok {
                                         return index+1;
@@ -1370,7 +1377,7 @@ impl HttpParser {
                             // important for applications, but let's keep it for now.
                             assert_ok!(self);
                             callback_data!(self, body_mark,
-                                cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap() + 1),
+                                cb.on_body(self, data.slice(body_mark.unwrap() as uint, (index + 1) as uint)),
                                 error::HttpErrno::CBBody, index);
                             retry = true;
                         }
@@ -1383,7 +1390,7 @@ impl HttpParser {
                     state::State::MessageDone => {
                         self.state = new_message!(self);
                         assert_ok!(self);
-                        callback!(self, cb.on_message_complete(), 
+                        callback!(self, cb.on_message_complete(self), 
                                   error::HttpErrno::CBMessageComplete);
                         if self.errno != error::HttpErrno::Ok {
                             return index+1;
@@ -1476,7 +1483,7 @@ impl HttpParser {
 
                         assert_ok!(self);
                         callback_data!(self, body_mark,
-                            cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
+                            cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
                             error::HttpErrno::CBBody, index+1);
                     },
                     state::State::ChunkDataDone => {
@@ -1514,23 +1521,26 @@ impl HttpParser {
                 (if status_mark.is_some() { 1 } else { 0 }) <= 1);
 
         callback_data!(self, header_field_mark,
-            cb.on_header_field(data, header_field_mark.unwrap(), index - header_field_mark.unwrap()),
+            cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
             error::HttpErrno::CBHeaderField, index);
         callback_data!(self, header_value_mark,
-            cb.on_header_value(data, header_value_mark.unwrap(), index - header_value_mark.unwrap()),
+            cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
             error::HttpErrno::CBHeaderValue, index);
         callback_data!(self, url_mark,
-            cb.on_url(data, url_mark.unwrap(), index - url_mark.unwrap()),
+            cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
             error::HttpErrno::CBUrl, index);
         callback_data!(self, body_mark,
-            cb.on_body(data, body_mark.unwrap(), index - body_mark.unwrap()),
+            cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
             error::HttpErrno::CBBody, index);
         callback_data!(self, status_mark,
-            cb.on_status(data, status_mark.unwrap(), index - status_mark.unwrap()),
+            cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
             error::HttpErrno::CBStatus, index);
         len
     }
 
+    pub fn http_body_is_final(&self) -> bool {
+        self.state == state::State::MessageDone
+    }
 
     // Our URL parser
     fn parse_url_char(s : state::State, ch : u8) -> state::State {
@@ -1665,7 +1675,7 @@ impl HttpParser {
         true
     }
 
-    fn http_should_keep_alive(&self) -> bool {
+    pub fn http_should_keep_alive(&self) -> bool {
         if self.http_major > 0 && self.http_minor > 0 {
             // HTTP/1.1
             if (self.flags & flags::flags::CONNECTION_CLOSE) != 0 {
@@ -1680,42 +1690,421 @@ impl HttpParser {
 
         !self.http_message_needs_eof()
     }
+
 }
 
 // for tests only. Should be deleted after tests are done
-/*pub struct CallbackEmpty;
+fn main() {
+    test_responses();
+}
+
+fn test_responses() {
+    // RESPONSES
+    let responses: [Message, ..1] = [
+        Message {
+            name: String::from_str("google 301"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str(
+                "HTTP/1.1 301 Moved Permanently\r\n\
+                Location: http://www.google.com/\r\n\
+                Content-Type: text/html; charset=UTF-8\r\n\
+                Date: Sun, 26 Apr 2009 11:11:49 GMT\r\n\
+                Expires: Tue, 26 May 2009 11:11:49 GMT\r\n\
+                X-$PrototypeBI-Version: 1.6.0.3\r\n\
+                Cache-Control: public, max-age=2592000\r\n\
+                Server: gws\r\n\
+                Content-Length: 219 \r\n\
+                \r\n\
+                <HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
+                <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
+                <H1>301 Moved</H1>\n\
+                The document has moved\n\
+                <A HREF=\"http://www.google.com/\">here</A>.\r\n\
+                </BODY></HTML>\r\n"),
+            should_keep_alive: true,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 301,
+            response_status: String::from_str("Moved Permanently"),
+            num_headers: 8,
+            headers: vec![
+                [ String::from_str("Location"), String::from_str("http://www.google.com/") ],
+                [ String::from_str("Content-Type"), String::from_str("text/html; charset=UTF-8") ],
+                [ String::from_str("Date"), String::from_str("Sun, 26 Apr 2009 11:11:49 GMT") ],
+                [ String::from_str("Expires"), String::from_str("Tue, 26 May 2009 11:11:49 GMT") ],
+                [ String::from_str("X-$PrototypeBI-Version"), String::from_str("1.6.0.3") ],
+                [ String::from_str("Cache-Control"), String::from_str("public, max-age=2592000") ],
+                [ String::from_str("Server"), String::from_str("gws") ],
+                [ String::from_str("Content-Length"), String::from_str("219 ") ],
+            ],
+            body: String::from_str("<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
+                                    <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
+                                    <H1>301 Moved</H1>\n\
+                                    The document has moved\n\
+                                    <A HREF=\"http://www.google.com/\">here</A>.\r\n\
+                                    </BODY></HTML>\r\n"),
+            ..Default::default()
+        },
+    ];
+    // End of RESPONSES
+    for m in responses.iter() {
+        test_message(m);
+    }
+}
+
+fn test_message(message: &Message) {
+    let raw = &message.raw;
+    let raw_len = raw.len();
+    for i in range(0, raw_len) {
+        let mut hp = HttpParser::new(message.tp);
+        let mut cb = CallbackRegular{..Default::default()};
+        cb.messages.push(Message{..Default::default()});
+        let mut read: u64 = 0;
+
+        if i > 0 {
+            read = hp.execute(&mut cb, raw.slice(0, i).as_bytes());
+
+            if !message.upgrade.is_empty() && hp.upgrade {
+                cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(read as uint).to_string();
+                assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+                assert_eq_message(&cb.messages[0], message);
+                continue;
+            }
+
+            if read != (i as u64) {
+                print_error(hp.errno, raw.as_slice(), read);
+                panic!();
+            }
+        }
+
+        read = hp.execute(&mut cb, raw.slice_from(i).as_bytes());
+
+        if !(message.upgrade.is_empty()) && hp.upgrade {
+            cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(i+(read as uint)).to_string();
+            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+            assert_eq_message(&cb.messages[0], message);
+            continue;
+        }
+
+        if read != ((raw_len - i) as u64) {
+            print_error(hp.errno, raw.as_slice(), (i + read as uint) as u64);
+            panic!();
+        }
+
+        read = hp.execute(&mut cb, &[]);
+
+        if (read != 0) {
+            print_error(hp.errno, raw.as_slice(), read);
+            panic!();
+        }
+
+        assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+        assert_eq_message(&cb.messages[0], message);
+    }
+}
+
+#[deriving(PartialEq, Eq )]
+pub enum LastHeaderType {
+    None,
+    Field,
+    Value,
+}
+
+pub struct Message {
+    pub name: String,
+    pub raw: String,
+    pub tp: HttpParserType,
+    pub method: HttpMethod,
+    pub status_code: u16,
+    pub response_status: String,
+    pub request_path: String,
+    pub request_url: String,
+    pub fragment: String,
+    pub query_string: String,
+    pub body: String,
+    pub body_size: uint, // maybe not necessary
+    pub host: String,
+    pub userinfo: String,
+    pub port: u16,
+    pub num_headers: int, // might be able to delete this
+    pub last_header_element: LastHeaderType,
+    pub headers: Vec<[String,..2]>,
+    pub should_keep_alive: bool,
+    
+    pub upgrade: String,
+
+    pub http_major: u8,
+    pub http_minor: u8,
+
+    pub message_begin_cb_called: bool,
+    pub headers_complete_cb_called: bool,
+    pub message_complete_cb_called: bool,
+    pub message_complete_on_eof: bool,
+    pub body_is_final: bool,
+}
+
+impl Default for Message {
+    fn default() -> Message {
+        Message {
+            name: String::new() ,
+            raw: String::new(),
+            tp: HttpParserType::HttpBoth,
+            method: HttpMethod::Delete,
+            status_code: 0,
+            response_status: String::new(),
+            request_path: String::new(),
+            request_url: String::new(),
+            fragment: String::new(),
+            query_string: String::new(),
+            body: String::new(),
+            body_size: 0,
+            host: String::new(),
+            userinfo: String::new(),
+            port: 0,
+            num_headers: 0,
+            last_header_element: LastHeaderType::None,
+            headers: vec![],
+            should_keep_alive: false,
+
+            upgrade: String::new(),
+            
+            http_major: 0,
+            http_minor: 0,
+
+            message_begin_cb_called: false,
+            headers_complete_cb_called: false,
+            message_complete_cb_called: false,
+            message_complete_on_eof: false,
+            body_is_final: false,
+        }
+    }
+}
+
+pub struct CallbackEmpty;
 
 impl HttpParserCallback for CallbackEmpty {}
 
-
-fn main() {
-    test_chunk_content_length_overflow();
+pub struct CallbackRegular {
+    pub num_messages: uint, // maybe not necessary
+    pub messages: Vec<Message>,
+    pub currently_parsing_eof: bool,
 }
 
-macro_rules! chunk_content(
-    ($len:expr) => (
-        format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{}\r\n...", $len);
-    );
-)
-
-fn test_chunk_content_length_overflow() {
-    let a = chunk_content!("FFFFFFFFFFFFFFE");          // 2^64 / 16 - 1
-    let b = chunk_content!("FFFFFFFFFFFFFFFF");         // 2^64 - 1
-    let c = chunk_content!("10000000000000000");        // 2^64
-
-    test_content_length_overflow(b.as_bytes(), false);
-    test_content_length_overflow(c.as_bytes(), false);
-}
-
-fn test_content_length_overflow(data: &[u8], expect_ok: bool) {
-    let mut hp = HttpParser::new(HttpParserType::HttpResponse);
-    let cb = CallbackEmpty;
-
-    hp.execute(cb, data);
-
-    if expect_ok {
-        assert!(hp.errno == HttpErrno::Ok);
-    } else {
-        assert!(hp.errno == HttpErrno::InvalidContentLength);
+impl Default for CallbackRegular {
+    fn default() -> CallbackRegular {
+        CallbackRegular {
+            num_messages: 0,
+            messages: Vec::new(),
+            currently_parsing_eof: false,
+        }
     }
-}*/
+}
+
+impl HttpParserCallback for CallbackRegular {
+    fn on_message_begin(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        self.messages[self.num_messages].message_begin_cb_called = true;
+        Ok(0)
+    }
+
+    fn on_url(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                self.messages[self.num_messages].request_url.push_str(
+                    data_str);
+            },
+            _ => panic!("on_url: data is not in utf8 encoding"),
+        }
+        Ok(0)
+    }
+
+    fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                self.messages[self.num_messages].response_status.push_str(
+                    data_str);
+            },
+            _ => panic!("on_status: data is not in utf8 encoding"),
+        }
+        Ok(0)
+    }
+
+    fn on_header_field(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        if m.last_header_element != LastHeaderType::Field {
+            m.num_headers += 1;
+            m.headers.push([String::new(), String::new()]);
+        }
+        
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                let i = m.headers.len()-1;
+                m.headers[i][0].push_str(data_str);
+            },
+            _ => panic!("on_header_field: data is not in utf8 encoding"),
+        }
+
+        m.last_header_element = LastHeaderType::Field;
+
+        Ok(0)
+    }
+
+    fn on_header_value(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                let i = m.headers.len()-1;
+                m.headers[i][1].push_str(data_str);
+            },
+            _ => panic!("on_header_value: data is not in utf8 encoding"),
+        }
+
+        m.last_header_element = LastHeaderType::Value;
+
+        Ok(0)
+    }
+
+    fn on_headers_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+        m.method = parser.method;
+        m.status_code = parser.status_code;
+        m.http_major = parser.http_major;
+        m.http_minor = parser.http_minor;
+        m.headers_complete_cb_called = true;
+        m.should_keep_alive = parser.http_should_keep_alive();
+        Ok(0)
+    }
+
+    fn on_body(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                m.body.push_str(data_str);
+            },
+            _ => panic!("on_body: data is not in utf8 encoding"),
+        }
+        m.body_size += data.len();
+
+        if m.body_is_final {
+            panic!("\n\n ** Error http_body_is_final() should return 1 \
+                    on last on_body callback call \
+                    but it doesn't! **\n\n");
+        }
+
+        m.body_is_final = parser.http_body_is_final();
+        Ok(0)
+    }
+
+    fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        {
+            let m : &mut Message = &mut self.messages[self.num_messages];
+
+            if m.should_keep_alive != parser.http_should_keep_alive() {
+                panic!("\n\n ** Error http_should_keep_alive() should have same \
+                        value in both on_message_complete and on_headers_complet \
+                        but it doesn't! **\n\n");
+            }
+
+            if m.body_size > 0 && parser.http_body_is_final()
+                && !m.body_is_final {
+                panic!("\n\n ** Error http_body_is_final() should return 1 \
+                        on last on_body callback call \
+                        but it doesn't! **\n\n");
+            }
+
+            m.message_complete_cb_called = true;
+            m.message_complete_on_eof = self.currently_parsing_eof;
+        }
+
+        self.messages.push(Message{..Default::default()});
+        self.num_messages += 1;
+
+        Ok(0)
+    }
+}
+
+pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
+    println!("\n*** {} ***\n", errno.to_string());
+
+    let len = raw.len();
+    let mut this_line = false;
+    let mut char_len: u64 = 0;
+    let mut error_location_line = 0;
+    let mut eof = true;
+    for i in range(0, len) {
+        if i == (error_location as uint) { this_line = true; }
+        match raw.char_at(i) {
+            '\r' => {
+                char_len = 2;
+                print!("\\r");
+            },
+            '\n' => {
+                println!("\\n");
+
+                if this_line {
+                    eof = false;
+                    break;
+                }
+
+                error_location_line = 0;
+                continue;
+            },
+            _ => {
+                char_len = 1;
+                print!("{}", raw.char_at(i));
+            },
+        }
+        if !this_line { error_location_line += char_len; }       
+    }
+
+    if eof {
+        println!("[eof]");
+    }
+
+    for i in range(0, error_location_line as u64) {
+        print!(" ");
+    }
+    println!("^\n\nerror location: {}", error_location);
+}
+
+pub fn assert_eq_message(actual: &Message, expected: &Message) {
+    assert_eq!(actual.http_major, expected.http_major);
+    assert_eq!(actual.http_minor, expected.http_minor);
+
+    if expected.tp == HttpParserType::HttpRequest {
+        assert!(actual.method == expected.method);
+    } else {
+        assert_eq!(actual.status_code, expected.status_code);
+        assert_eq!(actual.response_status, expected.response_status);
+    }
+
+    assert_eq!(actual.should_keep_alive, expected.should_keep_alive);
+    assert_eq!(actual.message_complete_on_eof, expected.message_complete_on_eof);
+
+    assert!(actual.message_begin_cb_called);
+    assert!(actual.headers_complete_cb_called);
+    assert!(actual.message_complete_cb_called);
+
+    assert_eq!(actual.request_url, expected.request_url);
+
+    // Check URL components; we can't do this w/ CONNECT since it doesn't
+    // send us a well-formed URL.
+    // TODO add after implementing http_parser_parse_url()
+
+    if expected.body_size > 0 {
+        assert_eq!(actual.body_size, expected.body_size);
+    } else {
+        assert_eq!(actual.body, expected.body);
+    }
+
+    assert_eq!(actual.num_headers, expected.num_headers);
+
+    for i in range(0, actual.num_headers) {
+        assert_eq!(actual.headers[i as uint][0], expected.headers[i as uint][0]);
+        assert_eq!(actual.headers[i as uint][1], expected.headers[i as uint][1]);
+    }
+
+    assert_eq!(actual.upgrade, expected.upgrade);
+}

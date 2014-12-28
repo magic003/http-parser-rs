@@ -10,13 +10,13 @@ macro_rules! content_length(
     ($len:expr) => (
         format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", $len);
     );
-)
+);
 
 macro_rules! chunk_content(
     ($len:expr) => (
         format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{}\r\n...", $len);
     );
-)
+);
 
 #[test]
 fn test_header_content_length_overflow() {
@@ -42,9 +42,9 @@ fn test_chunk_content_length_overflow() {
 
 fn test_content_length_overflow(data: &[u8], expect_ok: bool) {
     let mut hp = HttpParser::new(HttpParserType::HttpResponse);
-    let cb = helper::CallbackEmpty;
+    let mut cb = helper::CallbackEmpty;
 
-    hp.execute(cb, data);
+    hp.execute(&mut cb, data);
 
     if expect_ok {
         assert!(hp.errno == HttpErrno::Ok);
