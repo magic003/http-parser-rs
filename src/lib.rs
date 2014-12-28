@@ -1423,19 +1423,19 @@ impl HttpParser {
                                     self.errno = error::HttpErrno::InvalidChunkSize;
                                     return index;
                                 }
+                            } else {
+                                let mut t : u64 = self.content_length;
+                                t *= 16;
+                                t += unhex_val as u64;
+
+                                // Overflow? Test against a conservative limit for simplicity
+                                if (ULLONG_MAX - 16)/16 < self.content_length {
+                                    self.errno = error::HttpErrno::InvalidContentLength;
+                                    return index;
+                                }
+
+                                self.content_length = t;
                             }
-
-                            let mut t : u64 = self.content_length;
-                            t *= 16;
-                            t += unhex_val as u64;
-
-                            // Overflow? Test against a conservative limit for simplicity
-                            if (ULLONG_MAX - 16)/16 < self.content_length {
-                                self.errno = error::HttpErrno::InvalidContentLength;
-                                return index;
-                            }
-
-                            self.content_length = t;
                         }
                     },
                     state::State::ChunkParameters => {
@@ -1702,47 +1702,35 @@ fn test_responses() {
     // RESPONSES
     let responses: [Message, ..1] = [
         Message {
-            name: String::from_str("google 301"),
+            name: String::from_str("200 trailing space on chunked body"),
             tp: HttpParserType::HttpResponse,
             raw: String::from_str(
-                "HTTP/1.1 301 Moved Permanently\r\n\
-                Location: http://www.google.com/\r\n\
-                Content-Type: text/html; charset=UTF-8\r\n\
-                Date: Sun, 26 Apr 2009 11:11:49 GMT\r\n\
-                Expires: Tue, 26 May 2009 11:11:49 GMT\r\n\
-                X-$PrototypeBI-Version: 1.6.0.3\r\n\
-                Cache-Control: public, max-age=2592000\r\n\
-                Server: gws\r\n\
-                Content-Length: 219 \r\n\
+                "HTTP/1.1 200 OK\r\n\
+                Content-Type: text/plain\r\n\
+                Transfer-Encoding: chunked\r\n\
                 \r\n\
-                <HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
-                <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
-                <H1>301 Moved</H1>\n\
-                The document has moved\n\
-                <A HREF=\"http://www.google.com/\">here</A>.\r\n\
-                </BODY></HTML>\r\n"),
+                25  \r\n\
+                This is the data in the first chunk\r\n\
+                \r\n\
+                1C\r\n\
+                and this is the second one\r\n\
+                \r\n\
+                0  \r\n\
+                \r\n"),
             should_keep_alive: true,
+            message_complete_on_eof: false,
             http_major: 1,
             http_minor: 1,
-            status_code: 301,
-            response_status: String::from_str("Moved Permanently"),
-            num_headers: 8,
+            status_code: 200,
+            response_status: String::from_str("OK"),
+            num_headers: 2,
             headers: vec![
-                [ String::from_str("Location"), String::from_str("http://www.google.com/") ],
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=UTF-8") ],
-                [ String::from_str("Date"), String::from_str("Sun, 26 Apr 2009 11:11:49 GMT") ],
-                [ String::from_str("Expires"), String::from_str("Tue, 26 May 2009 11:11:49 GMT") ],
-                [ String::from_str("X-$PrototypeBI-Version"), String::from_str("1.6.0.3") ],
-                [ String::from_str("Cache-Control"), String::from_str("public, max-age=2592000") ],
-                [ String::from_str("Server"), String::from_str("gws") ],
-                [ String::from_str("Content-Length"), String::from_str("219 ") ],
+                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
             ],
-            body: String::from_str("<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
-                                    <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
-                                    <H1>301 Moved</H1>\n\
-                                    The document has moved\n\
-                                    <A HREF=\"http://www.google.com/\">here</A>.\r\n\
-                                    </BODY></HTML>\r\n"),
+            body_size: 37+28,
+            body: String::from_str("This is the data in the first chunk\r\n\
+                                    and this is the second one\r\n"),
             ..Default::default()
         },
     ];
@@ -1791,6 +1779,7 @@ fn test_message(message: &Message) {
             panic!();
         }
 
+        cb.currently_parsing_eof = true;
         read = hp.execute(&mut cb, &[]);
 
         if (read != 0) {

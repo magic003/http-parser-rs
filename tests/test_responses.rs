@@ -9,7 +9,7 @@ mod helper;
 #[test]
 fn test_responses() {
     // RESPONSES
-    let responses: [helper::Message, ..1] = [
+    let responses: [helper::Message, ..5] = [
         helper::Message {
             name: String::from_str("google 301"),
             tp: HttpParserType::HttpResponse,
@@ -52,6 +52,114 @@ fn test_responses() {
                                     The document has moved\n\
                                     <A HREF=\"http://www.google.com/\">here</A>.\r\n\
                                     </BODY></HTML>\r\n"),
+            ..Default::default()
+        },
+        helper::Message {
+            name: String::from_str("no content-length response"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str(
+                "HTTP/1.1 200 OK\r\n\
+                Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n\
+                Server: Apache\r\n\
+                X-Powered-By: Servlet/2.5 JSP/2.1\r\n\
+                Content-Type: text/xml; charset=utf-8\r\n\
+                Connection: close\r\n\
+                \r\n\
+                <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                <SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n\
+                  <SOAP-ENV:Body>\n\
+                    <SOAP-ENV:Fault>\n\
+                      <faultcode>SOAP-ENV:Client</faultcode>\n\
+                      <faultstring>Client Error</faultstring>\n\
+                    </SOAP-ENV:Fault>\n\
+                  </SOAP-ENV:Body>\n\
+                </SOAP-ENV:Envelop>"),
+            should_keep_alive: false,
+            message_complete_on_eof: true,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 200,
+            response_status: String::from_str("OK"),
+            num_headers: 5,
+            headers: vec![
+                [ String::from_str("Date"), String::from_str("Tue, 04 Aug 2009 07:59:32 GMT") ],
+                [ String::from_str("Server"), String::from_str("Apache") ],
+                [ String::from_str("X-Powered-By"), String::from_str("Servlet/2.5 JSP/2.1") ],
+                [ String::from_str("Content-Type"), String::from_str("text/xml; charset=utf-8") ],
+                [ String::from_str("Connection"), String::from_str("close") ],
+            ],
+            body: String::from_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                                    <SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n\
+                                      <SOAP-ENV:Body>\n\
+                                        <SOAP-ENV:Fault>\n\
+                                          <faultcode>SOAP-ENV:Client</faultcode>\n\
+                                          <faultstring>Client Error</faultstring>\n\
+                                        </SOAP-ENV:Fault>\n\
+                                      </SOAP-ENV:Body>\n\
+                                    </SOAP-ENV:Envelop>"),
+            ..Default::default()
+        },
+        helper::Message {
+            name: String::from_str("404 no headers no body"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str("HTTP/1.1 404 Not Found\r\n\r\n"),
+            should_keep_alive: false,
+            message_complete_on_eof: true,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 404,
+            response_status: String::from_str("Not Found"),
+            num_headers: 0,
+            headers: vec![ ],
+            body_size: 0,
+            body: String::from_str(""),
+            ..Default::default()
+        },
+        helper::Message {
+            name: String::from_str("301 no response phrase"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str("HTTP/1.1 301\r\n\r\n"),
+            should_keep_alive: false,
+            message_complete_on_eof: true,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 301,
+            response_status: String::from_str(""),
+            num_headers: 0,
+            headers: vec![ ],
+            body: String::from_str(""),
+            ..Default::default()
+        },
+        helper::Message {
+            name: String::from_str("200 trailing space on chunked body"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str(
+                "HTTP/1.1 200 OK\r\n\
+                Content-Type: text/plain\r\n\
+                Transfer-Encoding: chunked\r\n\
+                \r\n\
+                25  \r\n\
+                This is the data in the first chunk\r\n\
+                \r\n\
+                1C\r\n\
+                and this is the second one\r\n\
+                \r\n\
+                0  \r\n\
+                \r\n"),
+            should_keep_alive: true,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 200,
+            response_status: String::from_str("OK"),
+            num_headers: 2,
+            headers: vec![
+                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+            ],
+            body_size: 37+28,
+            body: String::from_str("This is the data in the first chunk\r\n\
+                                    and this is the second one\r\n"),
             ..Default::default()
         },
     ];
@@ -100,6 +208,7 @@ fn test_message(message: &helper::Message) {
             panic!();
         }
 
+        cb.currently_parsing_eof = true;
         read = hp.execute(&mut cb, &[]);
 
         if (read != 0) {
