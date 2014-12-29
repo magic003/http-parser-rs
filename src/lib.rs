@@ -1229,7 +1229,7 @@ impl HttpParser {
                     },
                     state::State::HeaderValueDiscardWsAlmostDone => {
                         strict_check!(self, ch != LF, index);
-                        self.state = state::State::HeaderValueDiscardWs;
+                        self.state = state::State::HeaderValueDiscardLws;
                     },
                     state::State::HeaderValueDiscardLws => {
                         if ch == b' ' || ch == b'\t' {
@@ -1702,35 +1702,27 @@ fn test_responses() {
     // RESPONSES
     let responses: [Message, ..1] = [
         Message {
-            name: String::from_str("200 trailing space on chunked body"),
+            name: String::from_str("non-ASCII in status line"),
             tp: HttpParserType::HttpResponse,
             raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
-                Content-Type: text/plain\r\n\
-                Transfer-Encoding: chunked\r\n\
-                \r\n\
-                25  \r\n\
-                This is the data in the first chunk\r\n\
-                \r\n\
-                1C\r\n\
-                and this is the second one\r\n\
-                \r\n\
-                0  \r\n\
+                "HTTP/1.1 500 Oriëntatieprobleem\r\n\
+                Date: Fri, 5 Nov 2010 23:07:12 GMT+2\r\n\
+                Content-Length: 0\r\n\
+                Connection: close\r\n\
                 \r\n"),
-            should_keep_alive: true,
+            should_keep_alive: false,
             message_complete_on_eof: false,
             http_major: 1,
             http_minor: 1,
-            status_code: 200,
-            response_status: String::from_str("OK"),
-            num_headers: 2,
+            status_code: 500,
+            response_status: String::from_str("Oriëntatieprobleem"),
+            num_headers: 3,
             headers: vec![
-                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ String::from_str("Date"), String::from_str("Fri, 5 Nov 2010 23:07:12 GMT+2") ],
+                [ String::from_str("Content-Length"), String::from_str("0") ],
+                [ String::from_str("Connection"), String::from_str("close") ],
             ],
-            body_size: 37+28,
-            body: String::from_str("This is the data in the first chunk\r\n\
-                                    and this is the second one\r\n"),
+            body: String::from_str(""),
             ..Default::default()
         },
     ];
@@ -1744,6 +1736,7 @@ fn test_message(message: &Message) {
     let raw = &message.raw;
     let raw_len = raw.len();
     for i in range(0, raw_len) {
+        println!("at {}", i);
         let mut hp = HttpParser::new(message.tp);
         let mut cb = CallbackRegular{..Default::default()};
         cb.messages.push(Message{..Default::default()});

@@ -18,7 +18,7 @@ pub struct Message {
     pub tp: HttpParserType,
     pub method: HttpMethod,
     pub status_code: u16,
-    pub response_status: String,
+    pub response_status: Vec<u8>,
     pub request_path: String,
     pub request_url: String,
     pub fragment: String,
@@ -53,7 +53,7 @@ impl Default for Message {
             tp: HttpParserType::HttpBoth,
             method: HttpMethod::Delete,
             status_code: 0,
-            response_status: String::new(),
+            response_status: vec![],
             request_path: String::new(),
             request_url: String::new(),
             fragment: String::new(),
@@ -120,13 +120,7 @@ impl HttpParserCallback for CallbackRegular {
     }
 
     fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
-        match str::from_utf8(data) {
-            Result::Ok(data_str) => {
-                self.messages[self.num_messages].response_status.push_str(
-                    data_str);
-            },
-            _ => panic!("on_status: data is not in utf8 encoding"),
-        }
+        self.messages[self.num_messages].response_status.push_all(data);
         Ok(0)
     }
 
