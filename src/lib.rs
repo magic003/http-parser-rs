@@ -46,6 +46,8 @@ pub struct HttpParser {
     pub method : http_method::HttpMethod,            // request only
 
     pub upgrade : bool,
+    
+    pub strict : bool,      // parsing using strict rules
 }
 
 pub trait HttpParserCallback {
@@ -141,7 +143,7 @@ macro_rules! start_state(
 
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
-        if HTTP_PARSER_STRICT && $cond {
+        if $parser.strict && $cond {
             $parser.errno = error::HttpErrno::Strict;
             return $idx;
         }
@@ -150,7 +152,7 @@ macro_rules! strict_check(
 
 macro_rules! new_message(
     ($parser:ident) => (
-        if HTTP_PARSER_STRICT {
+        if $parser.strict {
             if $parser.http_should_keep_alive() {
                 start_state!($parser)
             } else {
@@ -172,8 +174,6 @@ macro_rules! mark(
 
 const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
 const ULLONG_MAX : u64 = u64::MAX - 1;
-
-const HTTP_PARSER_STRICT : bool = true;
 
 const CR : u8 = b'\r';
 const LF : u8 = b'\n';
@@ -293,17 +293,17 @@ const UNHEX : [i8, ..256] = [
 
 // TODO replace some functions by macros
 
-fn token(ch :u8) -> Option<u8> {
-    if HTTP_PARSER_STRICT {
+fn token(hp : &HttpParser, ch :u8) -> Option<u8> {
+    if hp.strict {
         TOKEN[ch as uint]
     } else {
         if ch == b' ' { Some(b' ') } else { TOKEN[ch as uint] }
     }
 }
 
-fn is_url_char(ch : u8) -> bool {
+fn is_url_char(hp : &HttpParser, ch : u8) -> bool {
     let res = (NORMAL_URL_CHAR[(ch >> 3) as uint] & (1 << ((ch & 7) as uint))) != 0;
-    res || (!HTTP_PARSER_STRICT && (ch & 0x80) > 0)
+    res || (!hp.strict && (ch & 0x80) > 0)
 }
 
 fn lower(ch : u8) -> u8 {
@@ -353,6 +353,7 @@ impl HttpParser {
             status_code : 0,
             method : http_method::HttpMethod::Get,
             upgrade : false,
+            strict: true,
         }
     }
 
@@ -767,7 +768,7 @@ impl HttpParser {
                                 self.state = state::State::ReqServerStart;
                             }
 
-                            self.state = HttpParser::parse_url_char(self.state, ch);
+                            self.state = HttpParser::parse_url_char(self, self.state, ch);
                             if self.state == state::State::Dead {
                                 self.errno = error::HttpErrno::InvalidUrl;
                                 return index;
@@ -785,7 +786,7 @@ impl HttpParser {
                                 return index;
                             },
                             _ => {
-                                self.state = HttpParser::parse_url_char(self.state, ch);
+                                self.state = HttpParser::parse_url_char(self, self.state, ch);
                                 if self.state == state::State::Dead {
                                     self.errno = error::HttpErrno::InvalidUrl;
                                     return index;
@@ -822,7 +823,7 @@ impl HttpParser {
                                     error::HttpErrno::CBUrl, index+1);
                             },
                             _ => {
-                                self.state = HttpParser::parse_url_char(self.state, ch);
+                                self.state = HttpParser::parse_url_char(self, self.state, ch);
                                 if self.state == state::State::Dead {
                                     self.errno = error::HttpErrno::InvalidUrl;
                                     return index;
@@ -934,7 +935,7 @@ impl HttpParser {
                             self.state = state::State::HeadersAlmostDone;
                             retry = true;
                         } else {
-                            let c : Option<u8> = token(ch);
+                            let c : Option<u8> = token(self, ch);
 
                             if c.is_none() {
                                 self.errno = error::HttpErrno::InvalidHeaderToken;
@@ -956,7 +957,7 @@ impl HttpParser {
                         }
                     },
                     state::State::HeaderField => {
-                        let c_opt : Option<u8> = token(ch);
+                        let c_opt : Option<u8> = token(self, ch);
                         if c_opt.is_some() {
                             let c : u8 = c_opt.unwrap();
                             match self.header_state {
@@ -1543,12 +1544,12 @@ impl HttpParser {
     }
 
     // Our URL parser
-    fn parse_url_char(s : state::State, ch : u8) -> state::State {
+    fn parse_url_char(&self, s : state::State, ch : u8) -> state::State {
         if ch == b' ' || ch == b'\r' || ch == b'\n' {
             return state::State::Dead;
         }
 
-        if HTTP_PARSER_STRICT {
+        if self.strict {
             if ch == b'\t' || ch == b'\x0C' {   // '\x0C' = '\f' 
                 return state::State::Dead;
             }
@@ -1605,7 +1606,7 @@ impl HttpParser {
                 }
             },
             state::State::ReqPath => {
-                if is_url_char(ch) {
+                if is_url_char(self, ch) {
                     return s;
                 }
 
@@ -1616,7 +1617,7 @@ impl HttpParser {
                 }
             },
             state::State::ReqQueryStringStart | state::State::ReqQueryString => {
-                if is_url_char(ch) {
+                if is_url_char(self, ch) {
                     return state::State::ReqQueryString;
                 }
 
@@ -1627,7 +1628,7 @@ impl HttpParser {
                 }
             },
             state::State::ReqFragmentStart => {
-                if is_url_char(ch) {
+                if is_url_char(self, ch) {
                     return state::State::ReqFragment;
                 }
 
@@ -1638,7 +1639,7 @@ impl HttpParser {
                 }
             },
             state::State::ReqFragment => {
-                if is_url_char(ch) {
+                if is_url_char(self, ch) {
                     return s;
                 }
 

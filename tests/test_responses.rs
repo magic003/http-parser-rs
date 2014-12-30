@@ -9,7 +9,7 @@ mod helper;
 #[test]
 fn test_responses() {
     // RESPONSES
-    let responses: [helper::Message, ..20] = [
+    let responses: [helper::Message, ..22] = [
         helper::Message {
             name: String::from_str("google 301"),
             tp: HttpParserType::HttpResponse,
@@ -580,6 +580,7 @@ fn test_responses() {
         helper::Message {
             name: String::from_str("field space"),
             tp: HttpParserType::HttpResponse,
+            strict: false,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Server: Microsoft-IIS/6.0\r\n\
@@ -614,6 +615,73 @@ fn test_responses() {
             body: String::from_str("<xml>hello</xml>"),
             ..Default::default()
         },
+        helper::Message {
+            name: String::from_str("amazon.com"),
+            tp: HttpParserType::HttpResponse,
+            strict: false,
+            raw: String::from_str(
+                "HTTP/1.1 301 MovedPermanently\r\n\
+                Date: Wed, 15 May 2013 17:06:33 GMT\r\n\
+                Server: Server\r\n\
+                x-amz-id-1: 0GPHKXSJQ826RK7GZEB2\r\n\
+                p3p: policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"\r\n\
+                x-amz-id-2: STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD\r\n\
+                Location: http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846\r\n\
+                Vary: Accept-Encoding,User-Agent\r\n\
+                Content-Type: text/html; charset=ISO-8859-1\r\n\
+                Transfer-Encoding: chunked\r\n\
+                \r\n\
+                1\r\n\
+                \n\r\n\
+                0\r\n\
+                \r\n"),
+            should_keep_alive: true,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 301,
+            response_status: {
+                let mut v: Vec<u8> = Vec::new();
+                v.push_all("MovedPermanently".as_bytes());
+                v
+            },
+            num_headers: 9,
+            headers: vec![
+                [ String::from_str("Date"), String::from_str("Wed, 15 May 2013 17:06:33 GMT") ],
+                [ String::from_str("Server"), String::from_str("Server") ],
+                [ String::from_str("x-amz-id-1"), String::from_str("0GPHKXSJQ826RK7GZEB2") ],
+                [ String::from_str("p3p"), String::from_str("policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"") ],
+                [ String::from_str("x-amz-id-2"), String::from_str("STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD") ],
+                [ String::from_str("Location"), String::from_str("http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846") ],
+                [ String::from_str("Vary"), String::from_str("Accept-Encoding,User-Agent") ],
+                [ String::from_str("Content-Type"), String::from_str("text/html; charset=ISO-8859-1") ],
+                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+            ],
+            body: String::from_str("\n"),
+            ..Default::default()
+        },
+        helper::Message {
+            name: String::from_str("empty reason phrase after space"),
+            tp: HttpParserType::HttpResponse,
+            raw: String::from_str(
+                "HTTP/1.1 200 \r\n\
+                \r\n"),
+            should_keep_alive: false,
+            message_complete_on_eof: true,
+            http_major: 1,
+            http_minor: 1,
+            status_code: 200,
+            response_status: {
+                let mut v: Vec<u8> = Vec::new();
+                v.push_all("".as_bytes());
+                v
+            },
+            num_headers: 0,
+            headers: vec![
+            ],
+            body: String::from_str(""),
+            ..Default::default()
+        },
     ];
     // End of RESPONSES
     for m in responses.iter() {
@@ -626,8 +694,11 @@ fn test_message(message: &helper::Message) {
     let raw_len = raw.len();
     for i in range(0, raw_len) {
         let mut hp = HttpParser::new(message.tp);
+        hp.strict = message.strict;
+
         let mut cb = helper::CallbackRegular{..Default::default()};
         cb.messages.push(helper::Message{..Default::default()});
+
         let mut read: u64 = 0;
 
         if i > 0 {
