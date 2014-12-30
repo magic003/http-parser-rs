@@ -223,6 +223,55 @@ impl HttpParserCallback for CallbackRegular {
     }
 }
 
+pub struct CallbackDontCall;
+
+impl HttpParserCallback for CallbackDontCall {
+    fn on_message_begin(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_message_begin() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_url(&mut self, parser : &HttpParser, data : &[u8],) -> Result<i8, &str> {
+        panic!("\n\n*** on_url() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_status() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_header_field(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_header_field() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_header_value(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_header_value() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    fn on_headers_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_headers_complete() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_body(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_body() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_message_complete() called on paused parser ***\n\n");
+        Ok(0)
+    }
+}
+
 pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
     println!("\n*** {} ***\n", errno.to_string());
 
