@@ -51,40 +51,40 @@ pub struct HttpParser {
 }
 
 pub trait HttpParserCallback {
-    fn on_message_begin(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_url(&mut self, parser : &HttpParser, data : &[u8],) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_header_field(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_header_value(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_headers_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 
     #[allow(unused_variables)]
-    fn on_body(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         Ok(0)
     }
 
-    fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         Ok(0)
     }
 }
@@ -1543,6 +1543,18 @@ impl HttpParser {
         self.state == state::State::MessageDone
     }
 
+    pub fn pause(&mut self, pause : bool) {
+        if self.errno == error::HttpErrno::Ok || self.errno == error::HttpErrno::Paused {
+            self.errno = if pause {
+                error::HttpErrno::Paused
+            } else {
+                error::HttpErrno::Ok
+            };
+        } else {
+            panic!("Attempting to pause parser in error state");
+        }
+    }
+
     // Our URL parser
     fn parse_url_char(&self, s : state::State, ch : u8) -> state::State {
         if ch == b' ' || ch == b'\r' || ch == b'\n' {
@@ -1884,12 +1896,12 @@ impl Default for CallbackRegular {
 }
 
 impl HttpParserCallback for CallbackRegular {
-    fn on_message_begin(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         self.messages[self.num_messages].message_begin_cb_called = true;
         Ok(0)
     }
 
-    fn on_url(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         match str::from_utf8(data) {
             Result::Ok(data_str) => {
                 self.messages[self.num_messages].request_url.push_str(
@@ -1900,7 +1912,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_status(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         match str::from_utf8(data) {
             Result::Ok(data_str) => {
                 self.messages[self.num_messages].response_status.push_str(
@@ -1911,7 +1923,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_header_field(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         if m.last_header_element != LastHeaderType::Field {
@@ -1932,7 +1944,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_header_value(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         match str::from_utf8(data) {
@@ -1948,7 +1960,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_headers_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         let m : &mut Message = &mut self.messages[self.num_messages];
         m.method = parser.method;
         m.status_code = parser.status_code;
@@ -1959,7 +1971,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_body(&mut self, parser : &HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         match str::from_utf8(data) {
@@ -1980,7 +1992,7 @@ impl HttpParserCallback for CallbackRegular {
         Ok(0)
     }
 
-    fn on_message_complete(&mut self, parser : &HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
         {
             let m : &mut Message = &mut self.messages[self.num_messages];
 

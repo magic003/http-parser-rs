@@ -2,7 +2,7 @@ extern crate http_parser;
 
 use std::default::Default;
 
-use http_parser::{HttpParser, HttpParserType};
+use http_parser::{HttpParser, HttpParserType, HttpErrno};
 
 mod helper;
 
@@ -687,6 +687,13 @@ fn test_responses() {
     for m in responses.iter() {
         test_message(m);
     }
+
+    let mut i = 0i;
+    for m in responses.iter() {
+        println!("resp: {}", i);
+        i += 1;
+        test_message_pause(m);
+    }
 }
 
 fn test_message(message: &helper::Message) {
@@ -742,4 +749,48 @@ fn test_message(message: &helper::Message) {
         assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
         helper::assert_eq_message(&cb.messages[0], message);
     }
+}
+
+fn test_message_pause(msg: &helper::Message) {
+    let mut raw = msg.raw.as_slice();
+
+    let mut hp = HttpParser::new(msg.tp);
+    hp.strict = msg.strict;
+
+    let mut cb = helper::CallbackPause{..Default::default()};
+    cb.messages.push(helper::Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    while raw.len() > 0 {
+        cb.paused = false;
+        read = hp.execute(&mut cb, raw.as_bytes());
+
+        if cb.messages[0].message_complete_cb_called &&
+            msg.upgrade.is_empty() && hp.upgrade {
+            cb.messages[0].upgrade = raw.slice_from(read as uint).to_string();
+            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+            helper::assert_eq_message(&cb.messages[0], msg);
+            return;
+        }
+
+        if read < (raw.len() as u64) {
+            if hp.errno == HttpErrno::Strict {
+                return;
+            }
+
+            assert!(hp.errno == HttpErrno::Paused);
+        }
+
+        raw = raw.slice_from(read as uint);
+        hp.pause(false);
+    }
+
+    cb.currently_parsing_eof = true;
+    cb.paused = false;
+    read = hp.execute(&mut cb, &[]);
+    assert_eq!(read, 0);
+
+    assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+    helper::assert_eq_message(&cb.messages[0], msg);
 }
