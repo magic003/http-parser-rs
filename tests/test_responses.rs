@@ -683,6 +683,10 @@ fn test_responses() {
             ..Default::default()
         },
     ];
+
+    const NO_HEADERS_NO_BODY_404 : uint = 2;
+    const TRAILING_SPACE_ON_CHUNKED_BODY : uint = 4;
+
     // End of RESPONSES
     for m in responses.iter() {
         test_message(m);
@@ -700,6 +704,40 @@ fn test_responses() {
                 test_multiple3(r1, r2, r3);
             }
         }
+    }
+
+    test_message_count_body(&responses[NO_HEADERS_NO_BODY_404]);
+    test_message_count_body(&responses[TRAILING_SPACE_ON_CHUNKED_BODY]);
+
+    // test very large chunked response
+    {
+        let large_chunked = helper::Message {
+            name: String::from_str("large chunked"),
+            tp: HttpParserType::HttpResponse,
+            raw: create_large_chunked_message(31337,
+                "HTTP/1.0 200 OK\r\n\
+                Transfer-Encoding: chunked\r\n\
+                Content-Type: text/plain\r\n\
+                \r\n"),
+            should_keep_alive: false,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 0,
+            status_code: 200,
+            response_status: {
+                    let mut v: Vec<u8> = Vec::new();
+                    v.push_all("OK".as_bytes());
+                    v
+            },
+            num_headers: 2,
+            headers: vec![
+                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+            ],
+            body_size: 31337*1024,
+            ..Default::default()
+        };
+        test_message_count_body(&large_chunked);
     }
 }
 
@@ -892,4 +930,53 @@ fn upgrade_message_fix(cb: &mut helper::CallbackRegular, body: &str, read: u64, 
     }
 
     panic!("\n\n*** Error: expected a message with upgrade ***\n");
+}
+
+fn test_message_count_body(msg: &helper::Message) {
+    let mut hp = HttpParser::new(msg.tp);
+    hp.strict = msg.strict;
+
+    let mut cb = helper::CallbackCountBody{..Default::default()};
+    cb.messages.push(helper::Message{..Default::default()});
+
+    let mut read : u64 = 0;
+    let len : u64 = msg.raw.len() as u64;
+    let chunk : u64 = 4024;
+
+    let mut i : u64 = 0;
+    while i < len {
+        let toread : u64 = std::cmp::min(len-i, chunk);
+        read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i as uint, (i + toread) as uint));
+        if read != toread {
+            helper::print_error(hp.errno, msg.raw.as_slice(), read);
+            panic!();
+        }
+
+        i += chunk;
+    }
+
+    cb.currently_parsing_eof = true;
+    read = hp.execute(&mut cb, &[]);
+    if read != 0 {
+        helper::print_error(hp.errno, msg.raw.as_slice(), read);
+        panic!();
+    }
+
+    assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+    helper::assert_eq_message(&cb.messages[0], msg);
+}
+
+fn create_large_chunked_message(body_size_in_kb: uint, headers: &str) -> String {
+    let mut buf = String::from_str(headers);
+
+    for _ in range(0, body_size_in_kb) {
+        buf.push_str("400\r\n");
+        for _ in range(0i, 1024i) {
+            buf.push('C');
+        }
+        buf.push_str("\r\n");
+    }
+
+    buf.push_str("0\r\n\r\n");
+    buf
 }

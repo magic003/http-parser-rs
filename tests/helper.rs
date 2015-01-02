@@ -461,6 +461,135 @@ impl HttpParserCallback for CallbackPause {
     }
 }
 
+pub struct CallbackCountBody {
+    pub num_messages: uint, // maybe not necessary
+    pub messages: Vec<Message>,
+    pub currently_parsing_eof: bool,
+}
+
+impl Default for CallbackCountBody {
+    fn default() -> CallbackCountBody {
+        CallbackCountBody {
+            num_messages: 0,
+            messages: Vec::new(),
+            currently_parsing_eof: false,
+        }
+    }
+}
+
+// find a way to reuse the code in CallbackRegular
+impl HttpParserCallback for CallbackCountBody {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        self.messages[self.num_messages].message_begin_cb_called = true;
+        Ok(0)
+    }
+
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                self.messages[self.num_messages].request_url.push_str(
+                    data_str);
+            },
+            _ => panic!("on_url: data is not in utf8 encoding"),
+        }
+        Ok(0)
+    }
+
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        self.messages[self.num_messages].response_status.push_all(data);
+        Ok(0)
+    }
+
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        if m.last_header_element != LastHeaderType::Field {
+            m.num_headers += 1;
+            m.headers.push([String::new(), String::new()]);
+        }
+        
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                let i = m.headers.len()-1;
+                m.headers[i][0].push_str(data_str);
+            },
+            _ => panic!("on_header_field: data is not in utf8 encoding"),
+        }
+
+        m.last_header_element = LastHeaderType::Field;
+
+        Ok(0)
+    }
+
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        match str::from_utf8(data) {
+            Result::Ok(data_str) => {
+                let i = m.headers.len()-1;
+                m.headers[i][1].push_str(data_str);
+            },
+            _ => panic!("on_header_value: data is not in utf8 encoding"),
+        }
+
+        m.last_header_element = LastHeaderType::Value;
+
+        Ok(0)
+    }
+
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+        m.method = parser.method;
+        m.status_code = parser.status_code;
+        m.http_major = parser.http_major;
+        m.http_minor = parser.http_minor;
+        m.headers_complete_cb_called = true;
+        m.should_keep_alive = parser.http_should_keep_alive();
+        Ok(0)
+    }
+
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        let m : &mut Message = &mut self.messages[self.num_messages];
+
+        m.body_size += data.len();
+
+        if m.body_is_final {
+            panic!("\n\n ** Error http_body_is_final() should return 1 \
+                    on last on_body callback call \
+                    but it doesn't! **\n\n");
+        }
+
+        m.body_is_final = parser.http_body_is_final();
+        Ok(0)
+    }
+
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        {
+            let m : &mut Message = &mut self.messages[self.num_messages];
+
+            if m.should_keep_alive != parser.http_should_keep_alive() {
+                panic!("\n\n ** Error http_should_keep_alive() should have same \
+                        value in both on_message_complete and on_headers_complet \
+                        but it doesn't! **\n\n");
+            }
+
+            if m.body_size > 0 && parser.http_body_is_final()
+                && !m.body_is_final {
+                panic!("\n\n ** Error http_body_is_final() should return 1 \
+                        on last on_body callback call \
+                        but it doesn't! **\n\n");
+            }
+
+            m.message_complete_cb_called = true;
+            m.message_complete_on_eof = self.currently_parsing_eof;
+        }
+
+        self.messages.push(Message{..Default::default()});
+        self.num_messages += 1;
+
+        Ok(0)
+    }
+}
 pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
     println!("\n*** {} ***\n", errno.to_string());
 
