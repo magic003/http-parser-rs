@@ -685,7 +685,12 @@ fn test_responses() {
     ];
 
     const NO_HEADERS_NO_BODY_404 : uint = 2;
+    const NO_REASON_PHRASE : uint = 3;
     const TRAILING_SPACE_ON_CHUNKED_BODY : uint = 4;
+    const NO_CARRIAGE_RET : uint = 5;
+    const UNDERSCORE_HEADER_KEY : uint = 7;
+    const BONJOUR_MADAME_FR : uint = 8;
+    const NO_BODY_HTTP10_KA_204 : uint = 14;
 
     // End of RESPONSES
     for m in responses.iter() {
@@ -739,6 +744,16 @@ fn test_responses() {
         };
         test_message_count_body(&large_chunked);
     }
+
+    // response scan 1/2
+    test_scan(&responses[TRAILING_SPACE_ON_CHUNKED_BODY],
+              &responses[NO_BODY_HTTP10_KA_204],
+              &responses[NO_REASON_PHRASE]);
+
+    // response scan 2/2
+    test_scan(&responses[BONJOUR_MADAME_FR], 
+              &responses[UNDERSCORE_HEADER_KEY],
+              &responses[NO_CARRIAGE_RET]);
 }
 
 fn test_message(message: &helper::Message) {
@@ -764,7 +779,7 @@ fn test_message(message: &helper::Message) {
             }
 
             if read != (i as u64) {
-                helper::print_error(hp.errno, raw.as_slice(), read);
+                helper::print_error(hp.errno, raw.as_bytes(), read);
                 panic!();
             }
         }
@@ -779,7 +794,7 @@ fn test_message(message: &helper::Message) {
         }
 
         if read != ((raw_len - i) as u64) {
-            helper::print_error(hp.errno, raw.as_slice(), (i + read as uint) as u64);
+            helper::print_error(hp.errno, raw.as_bytes(), (i + read as uint) as u64);
             panic!();
         }
 
@@ -787,7 +802,7 @@ fn test_message(message: &helper::Message) {
         read = hp.execute(&mut cb, &[]);
 
         if (read != 0) {
-            helper::print_error(hp.errno, raw.as_slice(), read);
+            helper::print_error(hp.errno, raw.as_bytes(), read);
             panic!();
         }
 
@@ -890,7 +905,7 @@ fn test_multiple3(r1: &helper::Message, r2: &helper::Message, r3: &helper::Messa
     }
 
     if read != (total.len() as u64) {
-        helper::print_error(hp.errno, total.as_slice(), read);
+        helper::print_error(hp.errno, total.as_bytes(), read);
         panic!();
     }
 
@@ -898,7 +913,7 @@ fn test_multiple3(r1: &helper::Message, r2: &helper::Message, r3: &helper::Messa
     read = hp.execute(&mut cb, &[]);
 
     if (read != 0) {
-        helper::print_error(hp.errno, total.as_slice(), read);
+        helper::print_error(hp.errno, total.as_bytes(), read);
         panic!();
     }
 
@@ -948,7 +963,7 @@ fn test_message_count_body(msg: &helper::Message) {
         let toread : u64 = std::cmp::min(len-i, chunk);
         read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i as uint, (i + toread) as uint));
         if read != toread {
-            helper::print_error(hp.errno, msg.raw.as_slice(), read);
+            helper::print_error(hp.errno, msg.raw.as_bytes(), read);
             panic!();
         }
 
@@ -958,7 +973,7 @@ fn test_message_count_body(msg: &helper::Message) {
     cb.currently_parsing_eof = true;
     read = hp.execute(&mut cb, &[]);
     if read != 0 {
-        helper::print_error(hp.errno, msg.raw.as_slice(), read);
+        helper::print_error(hp.errno, msg.raw.as_bytes(), read);
         panic!();
     }
 
@@ -979,4 +994,103 @@ fn create_large_chunked_message(body_size_in_kb: uint, headers: &str) -> String 
 
     buf.push_str("0\r\n\r\n");
     buf
+}
+
+fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
+    print!("i={}  j={}\n", i, j);
+    print!("buf1 ({}) {}\n\n", buf1.len(), buf1);
+    print!("buf2 ({}) {}\n\n", buf2.len(), buf2);
+    print!("buf3 ({}) {}\n\n", buf3.len(), buf3);
+    panic!();
+}
+
+fn test_scan(r1: &helper::Message, r2: &helper::Message, r3: &helper::Message) {
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let total_len = total.len();
+
+    let message_count = count_parsed_messages([r1, r2, r3].as_slice());
+
+    for &is_type_both in [false, true].iter() {
+        for j in range(2, total_len) {
+            for i in range(1, j) {
+                let mut hp = HttpParser::new(if is_type_both { HttpParserType::HttpBoth } else { r1.tp });
+                hp.strict = r1.strict && r2.strict && r3.strict;
+
+                let mut cb = helper::CallbackRegular{..Default::default()};
+                cb.messages.push(helper::Message{..Default::default()});
+
+                let mut read: u64 = 0;
+                let mut done = false;
+                
+                let buf1 = total.as_bytes().slice(0, i);
+                let buf2 = total.as_bytes().slice(i, j);
+                let buf3 = total.as_bytes().slice(j, total_len);
+
+                read = hp.execute(&mut cb, buf1);
+
+                if hp.upgrade {
+                    done = true;
+                } else {
+                    if read != (buf1.len() as u64) {
+                        helper::print_error(hp.errno, buf1, read);
+                        print_test_scan_error(i, j, buf1, buf2, buf3);
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf2);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len()) as u64) {
+                            helper::print_error(hp.errno, buf2, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf3);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len() + buf3.len()) as u64) {
+                            helper::print_error(hp.errno, buf3, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    cb.currently_parsing_eof = true;
+                    read = hp.execute(&mut cb, &[]);
+                }
+
+                // test
+
+                if hp.upgrade {
+                    upgrade_message_fix(&mut cb, total.as_slice(), read, [r1, r2, r3].as_slice());
+                }
+
+                if message_count != cb.num_messages {
+                    print!("\n\nParser didn't see {} messages only {}\n", message_count, cb.num_messages);
+                    print_test_scan_error(i, j, buf1, buf2, buf3);
+                }
+
+                helper::assert_eq_message(&cb.messages[0], r1);
+                if message_count > 1 {
+                    helper::assert_eq_message(&cb.messages[1], r2);
+                }
+                if message_count > 2 {
+                    helper::assert_eq_message(&cb.messages[2], r3);
+                }
+            }
+        }
+    }
 }

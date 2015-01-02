@@ -590,7 +590,7 @@ impl HttpParserCallback for CallbackCountBody {
         Ok(0)
     }
 }
-pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
+pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
     println!("\n*** {} ***\n", errno.to_string());
 
     let len = raw.len();
@@ -600,12 +600,12 @@ pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
     let mut eof = true;
     for i in range(0, len) {
         if i == (error_location as uint) { this_line = true; }
-        match raw.char_at(i) {
-            '\r' => {
+        match raw[i] {
+            b'\r' => {
                 char_len = 2;
                 print!("\\r");
             },
-            '\n' => {
+            b'\n' => {
                 println!("\\n");
 
                 if this_line {
@@ -618,7 +618,7 @@ pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
             },
             _ => {
                 char_len = 1;
-                print!("{}", raw.char_at(i));
+                print!("{}", raw[i]);
             },
         }
         if !this_line { error_location_line += char_len; }       
