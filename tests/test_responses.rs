@@ -688,11 +688,18 @@ fn test_responses() {
         test_message(m);
     }
 
-    let mut i = 0i;
     for m in responses.iter() {
-        println!("resp: {}", i);
-        i += 1;
         test_message_pause(m);
+    }
+
+    for r1 in responses.iter() {
+        if !r1.should_keep_alive { continue; }
+        for r2 in responses.iter() {
+            if !r2.should_keep_alive { continue; }
+            for r3 in responses.iter() {
+                test_multiple3(r1, r2, r3);
+            }
+        }
     }
 }
 
@@ -793,4 +800,96 @@ fn test_message_pause(msg: &helper::Message) {
 
     assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
     helper::assert_eq_message(&cb.messages[0], msg);
+}
+
+fn count_parsed_messages(messages: &[&helper::Message]) -> uint {
+    let mut i: uint = 0;
+    let len = messages.len();
+
+    while i < len {
+        let msg = messages[i];
+        i += 1;
+
+        if !msg.upgrade.is_empty() {
+            break;
+        }
+    }
+
+    i
+}
+
+fn test_multiple3(r1: &helper::Message, r2: &helper::Message, r3: &helper::Message) {
+    let messages = [r1, r2, r3];
+    let message_count = count_parsed_messages(messages.as_slice());
+
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let mut hp = HttpParser::new(r1.tp);
+    hp.strict = r1.strict && r2.strict && r3.strict;
+
+    let mut cb = helper::CallbackRegular{..Default::default()};
+    cb.messages.push(helper::Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    read = hp.execute(&mut cb, total.as_bytes());
+
+    if hp.upgrade {
+        upgrade_message_fix(&mut cb, total.as_slice(), read, messages.as_slice());
+
+        assert!(message_count == cb.num_messages,
+                "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+        helper::assert_eq_message(&cb.messages[0], r1);
+        if message_count > 1 {
+            helper::assert_eq_message(&cb.messages[1], r2);
+        }
+        if message_count > 2 {
+            helper::assert_eq_message(&cb.messages[2], r2);
+        }
+    }
+
+    if read != (total.len() as u64) {
+        helper::print_error(hp.errno, total.as_slice(), read);
+        panic!();
+    }
+
+    cb.currently_parsing_eof = true;
+    read = hp.execute(&mut cb, &[]);
+
+    if (read != 0) {
+        helper::print_error(hp.errno, total.as_slice(), read);
+        panic!();
+    }
+
+    assert!(message_count == cb.num_messages,
+            "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+    helper::assert_eq_message(&cb.messages[0], r1);
+    if message_count > 1 {
+        helper::assert_eq_message(&cb.messages[1], r2);
+    }
+    if message_count > 2 {
+        helper::assert_eq_message(&cb.messages[2], r3);
+    }
+}
+
+fn upgrade_message_fix(cb: &mut helper::CallbackRegular, body: &str, read: u64, msgs: &[&helper::Message]) {
+    let mut off : u64 = 0;
+
+    for m in msgs.iter() {
+        off += (m.raw.len() as u64);
+
+        if !m.upgrade.is_empty() {
+            off -= (m.upgrade.len() as u64);
+
+            assert_eq!(body.slice_from(off as uint), body.slice_from(read as uint));
+            cb.messages[cb.num_messages-1].upgrade = 
+                body.slice(read as uint, (read+(m.upgrade.len() as u64)) as uint).to_string();
+            return;
+        }
+    }
+
+    panic!("\n\n*** Error: expected a message with upgrade ***\n");
 }
