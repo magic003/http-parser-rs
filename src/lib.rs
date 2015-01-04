@@ -689,7 +689,7 @@ impl HttpParser {
                         let matcher = matcher_string.as_slice();
                         if ch == b' ' && self.index == matcher.len() {
                             self.state = state::State::ReqSpacesBeforeUrl;
-                        } else if ch == (matcher.char_at(self.index) as u8) {
+                        } else if self.index < matcher.len() && ch == (matcher.char_at(self.index) as u8) {
                             ;
                         } else if self.method == http_method::HttpMethod::Connect {
                             if self.index == 1 && ch == b'H' {
@@ -719,7 +719,7 @@ impl HttpParser {
                             if self.index == 1 && ch == b'E' {
                                 self.method = http_method::HttpMethod::Search;
                             } else {
-                                self.errno == error::HttpErrno::InvalidMethod;
+                                self.errno = error::HttpErrno::InvalidMethod;
                                 return index;
                             }
                         } else if self.index == 1 && self.method == http_method::HttpMethod::Post {
@@ -1708,55 +1708,52 @@ impl HttpParser {
 
 // for tests only. Should be deleted after tests are done
 fn main() {
-    test_responses();
-}
-
-fn test_responses() {
-    // RESPONSES
-    let responses: [Message, ..1] = [
-        Message {
-            name: String::from_str("non-ASCII in status line"),
-            tp: HttpParserType::HttpResponse,
-            raw: String::from_str(
-                "HTTP/1.1 500 Oriëntatieprobleem\r\n\
-                Date: Fri, 5 Nov 2010 23:07:12 GMT+2\r\n\
-                Content-Length: 0\r\n\
-                Connection: close\r\n\
-                \r\n"),
-            should_keep_alive: false,
-            message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
-            status_code: 500,
-            response_status: String::from_str("Oriëntatieprobleem"),
-            num_headers: 3,
-            headers: vec![
-                [ String::from_str("Date"), String::from_str("Fri, 5 Nov 2010 23:07:12 GMT+2") ],
-                [ String::from_str("Content-Length"), String::from_str("0") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
-            ],
-            body: String::from_str(""),
-            ..Default::default()
+    let msg = Message {
+        name: String::from_str("utf-8 path request"),
+        tp: HttpParserType::HttpRequest,
+        strict: false,
+        raw: String::from_str( 
+            "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n\
+            Host: github.com\r\n\
+            \r\n"),
+        should_keep_alive: true,
+        message_complete_on_eof: false,
+        http_major: 1,
+        http_minor: 1,
+        method: HttpMethod::Get,
+        query_string: String::from_str("q=1"),
+        fragment: String::from_str("narf"),
+        request_path: String::from_str("/δ¶/δt/pope"),
+        request_url: {
+            let mut v: Vec<u8> = Vec::new();
+            v.push_all("/δ¶/δt/pope?q=1#narf".as_bytes());
+            v
         },
-    ];
-    // End of RESPONSES
-    for m in responses.iter() {
-        test_message(m);
-    }
+        num_headers: 1,
+        headers: vec![
+            [ String::from_str("Host"), String::from_str("github.com") ],
+        ],
+        body: String::from_str(""),
+        ..Default::default()
+    };
+
+    test_message(&msg);
 }
 
-fn test_message(message: &Message) {
+pub fn test_message(message: &Message) {
     let raw = &message.raw;
     let raw_len = raw.len();
     for i in range(0, raw_len) {
-        println!("at {}", i);
         let mut hp = HttpParser::new(message.tp);
+        hp.strict = message.strict;
+
         let mut cb = CallbackRegular{..Default::default()};
         cb.messages.push(Message{..Default::default()});
+
         let mut read: u64 = 0;
 
         if i > 0 {
-            read = hp.execute(&mut cb, raw.slice(0, i).as_bytes());
+            read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
 
             if !message.upgrade.is_empty() && hp.upgrade {
                 cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(read as uint).to_string();
@@ -1766,12 +1763,12 @@ fn test_message(message: &Message) {
             }
 
             if read != (i as u64) {
-                print_error(hp.errno, raw.as_slice(), read);
+                print_error(hp.errno, raw.as_bytes(), read);
                 panic!();
             }
         }
 
-        read = hp.execute(&mut cb, raw.slice_from(i).as_bytes());
+        read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
 
         if !(message.upgrade.is_empty()) && hp.upgrade {
             cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(i+(read as uint)).to_string();
@@ -1781,7 +1778,7 @@ fn test_message(message: &Message) {
         }
 
         if read != ((raw_len - i) as u64) {
-            print_error(hp.errno, raw.as_slice(), (i + read as uint) as u64);
+            print_error(hp.errno, raw.as_bytes(), (i + read as uint) as u64);
             panic!();
         }
 
@@ -1789,7 +1786,7 @@ fn test_message(message: &Message) {
         read = hp.execute(&mut cb, &[]);
 
         if (read != 0) {
-            print_error(hp.errno, raw.as_slice(), read);
+            print_error(hp.errno, raw.as_bytes(), read);
             panic!();
         }
 
@@ -1809,11 +1806,12 @@ pub struct Message {
     pub name: String,
     pub raw: String,
     pub tp: HttpParserType,
+    pub strict: bool,
     pub method: HttpMethod,
     pub status_code: u16,
-    pub response_status: String,
+    pub response_status: Vec<u8>,
     pub request_path: String,
-    pub request_url: String,
+    pub request_url: Vec<u8>,
     pub fragment: String,
     pub query_string: String,
     pub body: String,
@@ -1844,11 +1842,12 @@ impl Default for Message {
             name: String::new() ,
             raw: String::new(),
             tp: HttpParserType::HttpBoth,
+            strict: true,
             method: HttpMethod::Delete,
             status_code: 0,
-            response_status: String::new(),
+            response_status: vec![],
             request_path: String::new(),
-            request_url: String::new(),
+            request_url: vec![],
             fragment: String::new(),
             query_string: String::new(),
             body: String::new(),
@@ -1902,24 +1901,12 @@ impl HttpParserCallback for CallbackRegular {
     }
 
     fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
-        match str::from_utf8(data) {
-            Result::Ok(data_str) => {
-                self.messages[self.num_messages].request_url.push_str(
-                    data_str);
-            },
-            _ => panic!("on_url: data is not in utf8 encoding"),
-        }
+        self.messages[self.num_messages].request_url.push_all(data);
         Ok(0)
     }
 
     fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
-        match str::from_utf8(data) {
-            Result::Ok(data_str) => {
-                self.messages[self.num_messages].response_status.push_str(
-                    data_str);
-            },
-            _ => panic!("on_status: data is not in utf8 encoding"),
-        }
+        self.messages[self.num_messages].response_status.push_all(data);
         Ok(0)
     }
 
@@ -2020,7 +2007,7 @@ impl HttpParserCallback for CallbackRegular {
     }
 }
 
-pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
+pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
     println!("\n*** {} ***\n", errno.to_string());
 
     let len = raw.len();
@@ -2030,12 +2017,12 @@ pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
     let mut eof = true;
     for i in range(0, len) {
         if i == (error_location as uint) { this_line = true; }
-        match raw.char_at(i) {
-            '\r' => {
+        match raw[i] {
+            b'\r' => {
                 char_len = 2;
                 print!("\\r");
             },
-            '\n' => {
+            b'\n' => {
                 println!("\\n");
 
                 if this_line {
@@ -2048,7 +2035,7 @@ pub fn print_error(errno: HttpErrno, raw: &str, error_location: u64) {
             },
             _ => {
                 char_len = 1;
-                print!("{}", raw.char_at(i));
+                print!("{}", (raw[i] as char));
             },
         }
         if !this_line { error_location_line += char_len; }       
@@ -2102,4 +2089,21 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
     }
 
     assert_eq!(actual.upgrade, expected.upgrade);
+}
+
+fn test_simple(buf: &str, err_expected: HttpErrno) {
+    let mut hp = HttpParser::new(HttpParserType::HttpRequest);
+
+    let mut cb = CallbackRegular{..Default::default()};
+    cb.messages.push(Message{..Default::default()});
+
+    hp.execute(&mut cb, buf.as_bytes());
+    let err = hp.errno;
+    cb.currently_parsing_eof = true;
+    hp.execute(&mut cb, &[]);
+
+    assert!(err_expected == err || 
+            (hp.strict && (err_expected == HttpErrno::Ok || err == HttpErrno::Strict)),
+            "\n*** test_simple expected {}, but saw {} ***\n\n{}\n", 
+            err_expected.to_string(), err.to_string(), buf);
 }

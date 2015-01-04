@@ -694,7 +694,7 @@ fn test_responses() {
 
     // End of RESPONSES
     for m in responses.iter() {
-        test_message(m);
+        helper::test_message(m);
     }
 
     for m in responses.iter() {
@@ -754,61 +754,6 @@ fn test_responses() {
     test_scan(&responses[BONJOUR_MADAME_FR], 
               &responses[UNDERSCORE_HEADER_KEY],
               &responses[NO_CARRIAGE_RET]);
-}
-
-fn test_message(message: &helper::Message) {
-    let raw = &message.raw;
-    let raw_len = raw.len();
-    for i in range(0, raw_len) {
-        let mut hp = HttpParser::new(message.tp);
-        hp.strict = message.strict;
-
-        let mut cb = helper::CallbackRegular{..Default::default()};
-        cb.messages.push(helper::Message{..Default::default()});
-
-        let mut read: u64 = 0;
-
-        if i > 0 {
-            read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
-
-            if !message.upgrade.is_empty() && hp.upgrade {
-                cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(read as uint).to_string();
-                assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
-                helper::assert_eq_message(&cb.messages[0], message);
-                continue;
-            }
-
-            if read != (i as u64) {
-                helper::print_error(hp.errno, raw.as_bytes(), read);
-                panic!();
-            }
-        }
-
-        read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
-
-        if !(message.upgrade.is_empty()) && hp.upgrade {
-            cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(i+(read as uint)).to_string();
-            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
-            helper::assert_eq_message(&cb.messages[0], message);
-            continue;
-        }
-
-        if read != ((raw_len - i) as u64) {
-            helper::print_error(hp.errno, raw.as_bytes(), (i + read as uint) as u64);
-            panic!();
-        }
-
-        cb.currently_parsing_eof = true;
-        read = hp.execute(&mut cb, &[]);
-
-        if (read != 0) {
-            helper::print_error(hp.errno, raw.as_bytes(), read);
-            panic!();
-        }
-
-        assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
-        helper::assert_eq_message(&cb.messages[0], message);
-    }
 }
 
 fn test_message_pause(msg: &helper::Message) {

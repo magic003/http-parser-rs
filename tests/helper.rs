@@ -21,7 +21,7 @@ pub struct Message {
     pub status_code: u16,
     pub response_status: Vec<u8>,
     pub request_path: String,
-    pub request_url: String,
+    pub request_url: Vec<u8>,
     pub fragment: String,
     pub query_string: String,
     pub body: String,
@@ -57,7 +57,7 @@ impl Default for Message {
             status_code: 0,
             response_status: vec![],
             request_path: String::new(),
-            request_url: String::new(),
+            request_url: vec![],
             fragment: String::new(),
             query_string: String::new(),
             body: String::new(),
@@ -111,13 +111,7 @@ impl HttpParserCallback for CallbackRegular {
     }
 
     fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
-        match str::from_utf8(data) {
-            Result::Ok(data_str) => {
-                self.messages[self.num_messages].request_url.push_str(
-                    data_str);
-            },
-            _ => panic!("on_url: data is not in utf8 encoding"),
-        }
+        self.messages[self.num_messages].request_url.push_all(data);
         Ok(0)
     }
 
@@ -312,13 +306,7 @@ impl HttpParserCallback for CallbackPause {
         } else {
             parser.pause(true);
             self.paused = true;
-            match str::from_utf8(data) {
-                Result::Ok(data_str) => {
-                    self.messages[self.num_messages].request_url.push_str(
-                        data_str);
-                },
-                _ => panic!("on_url: data is not in utf8 encoding"),
-            }
+            self.messages[self.num_messages].request_url.push_all(data);
             Ok(0)
         }
     }
@@ -485,13 +473,7 @@ impl HttpParserCallback for CallbackCountBody {
     }
 
     fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
-        match str::from_utf8(data) {
-            Result::Ok(data_str) => {
-                self.messages[self.num_messages].request_url.push_str(
-                    data_str);
-            },
-            _ => panic!("on_url: data is not in utf8 encoding"),
-        }
+        self.messages[self.num_messages].request_url.push_all(data);
         Ok(0)
     }
 
@@ -618,7 +600,7 @@ pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
             },
             _ => {
                 char_len = 1;
-                print!("{}", raw[i]);
+                print!("{}", (raw[i] as char));
             },
         }
         if !this_line { error_location_line += char_len; }       
@@ -672,4 +654,59 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
     }
 
     assert_eq!(actual.upgrade, expected.upgrade);
+}
+
+pub fn test_message(message: &Message) {
+    let raw = &message.raw;
+    let raw_len = raw.len();
+    for i in range(0, raw_len) {
+        let mut hp = HttpParser::new(message.tp);
+        hp.strict = message.strict;
+
+        let mut cb = CallbackRegular{..Default::default()};
+        cb.messages.push(Message{..Default::default()});
+
+        let mut read: u64 = 0;
+
+        if i > 0 {
+            read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
+
+            if !message.upgrade.is_empty() && hp.upgrade {
+                cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(read as uint).to_string();
+                assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+                assert_eq_message(&cb.messages[0], message);
+                continue;
+            }
+
+            if read != (i as u64) {
+                print_error(hp.errno, raw.as_bytes(), read);
+                panic!();
+            }
+        }
+
+        read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
+
+        if !(message.upgrade.is_empty()) && hp.upgrade {
+            cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(i+(read as uint)).to_string();
+            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+            assert_eq_message(&cb.messages[0], message);
+            continue;
+        }
+
+        if read != ((raw_len - i) as u64) {
+            print_error(hp.errno, raw.as_bytes(), (i + read as uint) as u64);
+            panic!();
+        }
+
+        cb.currently_parsing_eof = true;
+        read = hp.execute(&mut cb, &[]);
+
+        if (read != 0) {
+            print_error(hp.errno, raw.as_bytes(), read);
+            panic!();
+        }
+
+        assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
+        assert_eq_message(&cb.messages[0], message);
+    }
 }
