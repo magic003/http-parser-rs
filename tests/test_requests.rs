@@ -264,6 +264,33 @@ fn test_requests() {
             ..Default::default()
         },
         helper::Message {
+            name: String::from_str("get one header no body"),
+            tp: HttpParserType::HttpRequest,
+            raw: String::from_str( 
+                "GET /get_one_header_no_body/world HTTP/1.1\r\n\
+                Accept: */*\r\n\
+                \r\n"),
+            should_keep_alive: true,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 1,
+            method: HttpMethod::Get,
+            query_string: String::from_str(""),
+            fragment: String::from_str(""),
+            request_path: String::from_str("/get_one_header_no_body/world"),
+            request_url: {
+                let mut v: Vec<u8> = Vec::new();
+                v.push_all("/get_one_header_no_body/world".as_bytes());
+                v
+            },
+            num_headers: 1,
+            headers: vec![
+                [ String::from_str("Accept"), String::from_str("*/*") ],
+            ],
+            body: String::from_str(""),
+            ..Default::default()
+        },
+        helper::Message {
             name: String::from_str("get funky content length body hello"),
             tp: HttpParserType::HttpRequest,
             raw: String::from_str( 
@@ -546,7 +573,7 @@ fn test_requests() {
                 v
             },
             num_headers: 7,
-            upgrade: String::from_str("Hot diggity dogg"),
+            upgrade: Some(String::from_str("Hot diggity dogg")),
             headers: vec![
                 [ String::from_str("Host"), String::from_str("example.com") ],
                 [ String::from_str("Connection"), String::from_str("Upgrade") ],
@@ -583,7 +610,7 @@ fn test_requests() {
                 v
             },
             num_headers: 2,
-            upgrade: String::from_str("some data\r\nand yet even more data"),
+            upgrade: Some(String::from_str("some data\r\nand yet even more data")),
             headers: vec![
                 [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
                 [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
@@ -833,7 +860,7 @@ fn test_requests() {
                 v
             },
             num_headers: 2,
-            upgrade: String::from_str(""),
+            upgrade: Some(String::from_str("")),
             headers: vec![
                 [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
                 [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
@@ -892,6 +919,7 @@ fn test_requests() {
                 v
             },
             num_headers: 2,
+            upgrade: Some(String::new()),
             headers: vec![
                 [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
                 [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
@@ -922,7 +950,6 @@ fn test_requests() {
                 v
             },
             num_headers: 3,
-            upgrade: String::new(),
             headers: vec![
                 [ String::from_str("Host"), String::from_str("www.example.com") ],
                 [ String::from_str("Content-Type"), String::from_str("application/x-www-form-urlencoded") ],
@@ -955,7 +982,6 @@ fn test_requests() {
                 v
             },
             num_headers: 4,
-            upgrade: String::new(),
             headers: vec![
                 [ String::from_str("Host"), String::from_str("www.example.com") ],
                 [ String::from_str("Content-Type"), String::from_str("application/x-www-form-urlencoded") ],
@@ -1108,7 +1134,7 @@ fn test_requests() {
                 v
             },
             num_headers: 7,
-            upgrade: String::from_str("Hot diggity dogg"),
+            upgrade: Some(String::from_str("Hot diggity dogg")),
             headers: vec![
                 [ String::from_str("Host"), String::from_str("example.com") ],
                 [ String::from_str("Connection"), String::from_str("Something, Upgrade, ,Keep-Alive") ],
@@ -1123,11 +1149,52 @@ fn test_requests() {
         },
     ];
 
+    const GET_NO_HEADERS_NO_BODY : uint = 4;
+    const GET_ONE_HEADER_NO_BODY : uint = 5;
+    const GET_FUNKY_CONTENT_LENGTH : uint = 6;
+    const POST_IDENTITY_BODY_WORLD : uint = 7;
+    const POST_CHUNKED_ALL_YOUR_BASE : uint = 8;
+    const TWO_CHUNKS_MULT_ZERO_END : uint = 9;
+    const CHUNKED_W_TRAILING_HEADERS : uint = 10;
+    const CHUNKED_W_BULLSHIT_AFTER_LENGTH : uint = 11;
+    const QUERY_URL_WITH_QUESTION_MARK_GET : uint = 14;
+    const PREFIX_NEWLINE_GET : uint = 15;
+    const CONNECT_REQUEST : uint = 17;
+
     // End REQUESTS
 
     for m in requests.iter() {
         helper::test_message(m);
     }
+    for m in requests.iter() {
+        helper::test_message_pause(m);
+    }
+
+    for r1 in requests.iter() {
+        if !r1.should_keep_alive { continue; }
+        for r2 in requests.iter() {
+            if !r2.should_keep_alive { continue; }
+            for r3 in requests.iter() {
+                helper::test_multiple3(r1, r2, r3);
+            }
+        }
+    }
+
+    helper::test_scan(&requests[GET_NO_HEADERS_NO_BODY],
+                      &requests[GET_ONE_HEADER_NO_BODY],
+                      &requests[GET_NO_HEADERS_NO_BODY]);
+
+    helper::test_scan(&requests[POST_CHUNKED_ALL_YOUR_BASE],
+                      &requests[POST_IDENTITY_BODY_WORLD],
+                      &requests[GET_FUNKY_CONTENT_LENGTH]);
+
+    helper::test_scan(&requests[TWO_CHUNKS_MULT_ZERO_END],
+                      &requests[CHUNKED_W_TRAILING_HEADERS],
+                      &requests[CHUNKED_W_BULLSHIT_AFTER_LENGTH]);
+
+    helper::test_scan(&requests[QUERY_URL_WITH_QUESTION_MARK_GET],
+                      &requests[PREFIX_NEWLINE_GET],
+                      &requests[CONNECT_REQUEST]);
 }
 
 fn test_simple(buf: &str, err_expected: HttpErrno) {

@@ -34,7 +34,7 @@ pub struct Message {
     pub headers: Vec<[String,..2]>,
     pub should_keep_alive: bool,
     
-    pub upgrade: String,
+    pub upgrade: Option<String>,
 
     pub http_major: u8,
     pub http_minor: u8,
@@ -70,7 +70,7 @@ impl Default for Message {
             headers: vec![],
             should_keep_alive: false,
 
-            upgrade: String::new(),
+            upgrade: None,
             
             http_major: 0,
             http_minor: 0,
@@ -671,8 +671,8 @@ pub fn test_message(message: &Message) {
         if i > 0 {
             read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
 
-            if !message.upgrade.is_empty() && hp.upgrade {
-                cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(read as uint).to_string();
+            if message.upgrade.is_some() && hp.upgrade {
+                cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(read as uint).to_string());
                 assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
                 assert_eq_message(&cb.messages[0], message);
                 continue;
@@ -686,8 +686,8 @@ pub fn test_message(message: &Message) {
 
         read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
 
-        if !(message.upgrade.is_empty()) && hp.upgrade {
-            cb.messages[cb.num_messages - 1].upgrade = raw.slice_from(i+(read as uint)).to_string();
+        if message.upgrade.is_some() && hp.upgrade {
+            cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(i+(read as uint)).to_string());
             assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
             assert_eq_message(&cb.messages[0], message);
             continue;
@@ -708,5 +708,244 @@ pub fn test_message(message: &Message) {
 
         assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
         assert_eq_message(&cb.messages[0], message);
+    }
+}
+
+pub fn test_message_pause(msg: &Message) {
+    let mut raw = msg.raw.as_slice();
+
+    let mut hp = HttpParser::new(msg.tp);
+    hp.strict = msg.strict;
+
+    let mut cb = CallbackPause{..Default::default()};
+    cb.messages.push(Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    while raw.len() > 0 {
+        cb.paused = false;
+        read = hp.execute(&mut cb, raw.as_bytes());
+
+        if cb.messages[0].message_complete_cb_called &&
+            msg.upgrade.is_some() && hp.upgrade {
+            cb.messages[0].upgrade = Some(raw.slice_from(read as uint).to_string());
+            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+            assert_eq_message(&cb.messages[0], msg);
+            return;
+        }
+
+        if read < (raw.len() as u64) {
+            if hp.errno == HttpErrno::Strict {
+                return;
+            }
+
+            assert!(hp.errno == HttpErrno::Paused);
+        }
+
+        raw = raw.slice_from(read as uint);
+        hp.pause(false);
+    }
+
+    cb.currently_parsing_eof = true;
+    cb.paused = false;
+    read = hp.execute(&mut cb, &[]);
+    assert_eq!(read, 0);
+
+    assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+    assert_eq_message(&cb.messages[0], msg);
+}
+
+fn count_parsed_messages(messages: &[&Message]) -> uint {
+    let mut i: uint = 0;
+    let len = messages.len();
+
+    while i < len {
+        let msg = messages[i];
+        i += 1;
+
+        if msg.upgrade.is_some() {
+            break;
+        }
+    }
+
+    i
+}
+
+pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
+    let messages = [r1, r2, r3];
+    let message_count = count_parsed_messages(messages.as_slice());
+
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let mut hp = HttpParser::new(r1.tp);
+    hp.strict = r1.strict && r2.strict && r3.strict;
+
+    let mut cb = CallbackRegular{..Default::default()};
+    cb.messages.push(Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    read = hp.execute(&mut cb, total.as_bytes());
+
+    if hp.upgrade {
+        upgrade_message_fix(&mut cb, total.as_slice(), read, messages.as_slice());
+
+        assert!(message_count == cb.num_messages,
+                "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+        assert_eq_message(&cb.messages[0], r1);
+        if message_count > 1 {
+            assert_eq_message(&cb.messages[1], r2);
+        }
+        if message_count > 2 {
+            assert_eq_message(&cb.messages[2], r3);
+        }
+        return;
+    }
+
+    if read != (total.len() as u64) {
+        print_error(hp.errno, total.as_bytes(), read);
+        panic!();
+    }
+
+    cb.currently_parsing_eof = true;
+    read = hp.execute(&mut cb, &[]);
+
+    if (read != 0) {
+        print_error(hp.errno, total.as_bytes(), read);
+        panic!();
+    }
+
+    assert!(message_count == cb.num_messages,
+            "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+    assert_eq_message(&cb.messages[0], r1);
+    if message_count > 1 {
+        assert_eq_message(&cb.messages[1], r2);
+    }
+    if message_count > 2 {
+        assert_eq_message(&cb.messages[2], r3);
+    }
+}
+
+fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: u64, msgs: &[&Message]) {
+    let mut off : u64 = 0;
+
+    for m in msgs.iter() {
+        off += (m.raw.len() as u64);
+
+        if m.upgrade.is_some() {
+            let upgrade_len = m.upgrade.as_ref().unwrap().len() as u64;
+
+            off -= upgrade_len;
+
+            assert_eq!(body.slice_from(off as uint), body.slice_from(read as uint));
+
+            cb.messages[cb.num_messages-1].upgrade = 
+                Some(body.slice(read as uint, (read+upgrade_len) as uint).to_string());
+            return;
+        }
+    }
+
+    panic!("\n\n*** Error: expected a message with upgrade ***\n");
+}
+
+fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
+    print!("i={}  j={}\n", i, j);
+    print!("buf1 ({}) {}\n\n", buf1.len(), buf1);
+    print!("buf2 ({}) {}\n\n", buf2.len(), buf2);
+    print!("buf3 ({}) {}\n\n", buf3.len(), buf3);
+    panic!();
+}
+
+pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let total_len = total.len();
+
+    let message_count = count_parsed_messages([r1, r2, r3].as_slice());
+
+    for &is_type_both in [false, true].iter() {
+        for j in range(2, total_len) {
+            for i in range(1, j) {
+                let mut hp = HttpParser::new(if is_type_both { HttpParserType::HttpBoth } else { r1.tp });
+                hp.strict = r1.strict && r2.strict && r3.strict;
+
+                let mut cb = CallbackRegular{..Default::default()};
+                cb.messages.push(Message{..Default::default()});
+
+                let mut read: u64 = 0;
+                let mut done = false;
+                
+                let buf1 = total.as_bytes().slice(0, i);
+                let buf2 = total.as_bytes().slice(i, j);
+                let buf3 = total.as_bytes().slice(j, total_len);
+
+                read = hp.execute(&mut cb, buf1);
+
+                if hp.upgrade {
+                    done = true;
+                } else {
+                    if read != (buf1.len() as u64) {
+                        print_error(hp.errno, buf1, read);
+                        print_test_scan_error(i, j, buf1, buf2, buf3);
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf2);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len()) as u64) {
+                            print_error(hp.errno, buf2, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf3);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len() + buf3.len()) as u64) {
+                            print_error(hp.errno, buf3, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    cb.currently_parsing_eof = true;
+                    read = hp.execute(&mut cb, &[]);
+                }
+
+                // test
+
+                if hp.upgrade {
+                    upgrade_message_fix(&mut cb, total.as_slice(), read, [r1, r2, r3].as_slice());
+                }
+
+                if message_count != cb.num_messages {
+                    print!("\n\nParser didn't see {} messages only {}\n", message_count, cb.num_messages);
+                    print_test_scan_error(i, j, buf1, buf2, buf3);
+                }
+
+                assert_eq_message(&cb.messages[0], r1);
+                if message_count > 1 {
+                    assert_eq_message(&cb.messages[1], r2);
+                }
+                if message_count > 2 {
+                    assert_eq_message(&cb.messages[2], r3);
+                }
+            }
+        }
     }
 }

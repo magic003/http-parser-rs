@@ -1709,35 +1709,58 @@ impl HttpParser {
 // for tests only. Should be deleted after tests are done
 fn main() {
     let msg = Message {
-        name: String::from_str("utf-8 path request"),
-        tp: HttpParserType::HttpRequest,
-        strict: false,
-        raw: String::from_str( 
-            "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n\
-            Host: github.com\r\n\
-            \r\n"),
-        should_keep_alive: true,
-        message_complete_on_eof: false,
-        http_major: 1,
-        http_minor: 1,
-        method: HttpMethod::Get,
-        query_string: String::from_str("q=1"),
-        fragment: String::from_str("narf"),
-        request_path: String::from_str("/δ¶/δt/pope"),
-        request_url: {
-            let mut v: Vec<u8> = Vec::new();
-            v.push_all("/δ¶/δt/pope?q=1#narf".as_bytes());
-            v
-        },
-        num_headers: 1,
-        headers: vec![
-            [ String::from_str("Host"), String::from_str("github.com") ],
-        ],
-        body: String::from_str(""),
-        ..Default::default()
+            name: String::from_str("get no headers no body"),
+            tp: HttpParserType::HttpRequest,
+            raw: String::from_str( 
+                "GET /get_no_headers_no_body/world HTTP/1.1\r\n\
+                \r\n"),
+            should_keep_alive: true,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 1,
+            method: HttpMethod::Get,
+            query_string: String::from_str(""),
+            fragment: String::from_str(""),
+            request_path: String::from_str("/get_no_headers_no_body/world"),
+            request_url: {
+                let mut v: Vec<u8> = Vec::new();
+                v.push_all("/get_no_headers_no_body/world".as_bytes());
+                v
+            },
+            num_headers: 0,
+            body: String::from_str(""),
+            ..Default::default()
+    };
+    let msg1 = Message {
+            name: String::from_str("get funky content length body hello"),
+            tp: HttpParserType::HttpRequest,
+            raw: String::from_str( 
+                "GET /get_funky_content_length_body_hello HTTP/1.0\r\n\
+                conTENT-Length: 5\r\n\
+                \r\n\
+                HELLO"),
+            should_keep_alive: false,
+            message_complete_on_eof: false,
+            http_major: 1,
+            http_minor: 0,
+            method: HttpMethod::Get,
+            query_string: String::from_str(""),
+            fragment: String::from_str(""),
+            request_path: String::from_str("/get_funky_content_length_body_hello"),
+            request_url: {
+                let mut v: Vec<u8> = Vec::new();
+                v.push_all("/get_funky_content_length_body_hello".as_bytes());
+                v
+            },
+            num_headers: 1,
+            headers: vec![
+                [ String::from_str("conTENT-Length"), String::from_str("5") ]
+            ],
+            body: String::from_str("HELLO"),
+            ..Default::default()
     };
 
-    test_message(&msg);
+    test_scan(&msg, &msg1, &msg);
 }
 
 pub fn test_message(message: &Message) {
@@ -2106,4 +2129,472 @@ fn test_simple(buf: &str, err_expected: HttpErrno) {
             (hp.strict && (err_expected == HttpErrno::Ok || err == HttpErrno::Strict)),
             "\n*** test_simple expected {}, but saw {} ***\n\n{}\n", 
             err_expected.to_string(), err.to_string(), buf);
+}
+
+pub fn test_message_pause(msg: &Message) {
+    let mut raw = msg.raw.as_slice();
+
+    let mut hp = HttpParser::new(msg.tp);
+    hp.strict = msg.strict;
+
+    let mut cb = CallbackPause{..Default::default()};
+    cb.messages.push(Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    while raw.len() > 0 {
+        cb.paused = false;
+        read = hp.execute(&mut cb, raw.as_bytes());
+
+        if cb.messages[0].message_complete_cb_called &&
+            !msg.upgrade.is_empty() && hp.upgrade {
+            cb.messages[0].upgrade = raw.slice_from(read as uint).to_string();
+            assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+            assert_eq_message(&cb.messages[0], msg);
+            return;
+        }
+
+        if read < (raw.len() as u64) {
+            if hp.errno == HttpErrno::Strict {
+                return;
+            }
+
+            assert!(hp.errno == HttpErrno::Paused);
+        }
+
+        raw = raw.slice_from(read as uint);
+        hp.pause(false);
+    }
+
+    cb.currently_parsing_eof = true;
+    cb.paused = false;
+    read = hp.execute(&mut cb, &[]);
+    assert_eq!(read, 0);
+
+    assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
+    assert_eq_message(&cb.messages[0], msg);
+}
+
+pub struct CallbackPause {
+    pub num_messages: uint, // maybe not necessary
+    pub messages: Vec<Message>,
+    pub currently_parsing_eof: bool,
+
+    pub paused: bool,
+    dontcall: CallbackDontCall,
+}
+
+impl Default for CallbackPause {
+    fn default() -> CallbackPause {
+        CallbackPause {
+            num_messages: 0,
+            messages: Vec::new(),
+            currently_parsing_eof: false,
+            paused: false,
+            dontcall: CallbackDontCall,
+        }
+    }
+}
+
+// TODO try to reuse code from CallbackRegular
+impl HttpParserCallback for CallbackPause {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_message_begin(parser)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            self.messages[self.num_messages].message_begin_cb_called = true;
+            Ok(0)
+        }
+    }
+
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_url(parser, data)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            self.messages[self.num_messages].request_url.push_all(data);
+            Ok(0)
+        }
+    }
+
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_status(parser, data)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            self.messages[self.num_messages].response_status.push_all(data);
+            Ok(0)
+        }
+    }
+
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_header_field(parser, data)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            let m : &mut Message = &mut self.messages[self.num_messages];
+
+            if m.last_header_element != LastHeaderType::Field {
+                m.num_headers += 1;
+                m.headers.push([String::new(), String::new()]);
+            }
+            
+            match str::from_utf8(data) {
+                Result::Ok(data_str) => {
+                    let i = m.headers.len()-1;
+                    m.headers[i][0].push_str(data_str);
+                },
+                _ => panic!("on_header_field: data is not in utf8 encoding"),
+            }
+
+            m.last_header_element = LastHeaderType::Field;
+
+            Ok(0)
+        }
+    }
+
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_header_value(parser, data)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            let m : &mut Message = &mut self.messages[self.num_messages];
+
+            match str::from_utf8(data) {
+                Result::Ok(data_str) => {
+                    let i = m.headers.len()-1;
+                    m.headers[i][1].push_str(data_str);
+                },
+                _ => panic!("on_header_value: data is not in utf8 encoding"),
+            }
+
+            m.last_header_element = LastHeaderType::Value;
+
+            Ok(0)
+        }
+    }
+
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_headers_complete(parser)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            let m : &mut Message = &mut self.messages[self.num_messages];
+            m.method = parser.method;
+            m.status_code = parser.status_code;
+            m.http_major = parser.http_major;
+            m.http_minor = parser.http_minor;
+            m.headers_complete_cb_called = true;
+            m.should_keep_alive = parser.http_should_keep_alive();
+            Ok(0)
+        }
+    }
+
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_body(parser, data)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            let m : &mut Message = &mut self.messages[self.num_messages];
+
+            match str::from_utf8(data) {
+                Result::Ok(data_str) => {
+                    m.body.push_str(data_str);
+                },
+                _ => panic!("on_body: data is not in utf8 encoding"),
+            }
+            m.body_size += data.len();
+
+            if m.body_is_final {
+                panic!("\n\n ** Error http_body_is_final() should return 1 \
+                        on last on_body callback call \
+                        but it doesn't! **\n\n");
+            }
+
+            m.body_is_final = parser.http_body_is_final();
+            Ok(0)
+        }
+    }
+
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        if self.paused {
+            self.dontcall.on_message_complete(parser)
+        } else {
+            parser.pause(true);
+            self.paused = true;
+            {
+                let m : &mut Message = &mut self.messages[self.num_messages];
+
+                if m.should_keep_alive != parser.http_should_keep_alive() {
+                    panic!("\n\n ** Error http_should_keep_alive() should have same \
+                            value in both on_message_complete and on_headers_complet \
+                            but it doesn't! **\n\n");
+                }
+
+                if m.body_size > 0 && parser.http_body_is_final()
+                    && !m.body_is_final {
+                    panic!("\n\n ** Error http_body_is_final() should return 1 \
+                            on last on_body callback call \
+                            but it doesn't! **\n\n");
+                }
+
+                m.message_complete_cb_called = true;
+                m.message_complete_on_eof = self.currently_parsing_eof;
+            }
+
+            self.messages.push(Message{..Default::default()});
+            self.num_messages += 1;
+
+            Ok(0)
+        }
+    }
+}
+
+pub struct CallbackDontCall;
+
+impl HttpParserCallback for CallbackDontCall {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_message_begin() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> Result<i8, &str> {
+        panic!("\n\n*** on_url() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_status() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_header_field() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_header_value() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_headers_complete() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    #[allow(unused_variables)]
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+        panic!("\n\n*** on_body() called on paused parser ***\n\n");
+        Ok(0)
+    }
+
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+        panic!("\n\n*** on_message_complete() called on paused parser ***\n\n");
+        Ok(0)
+    }
+}
+
+fn count_parsed_messages(messages: &[&Message]) -> uint {
+    let mut i: uint = 0;
+    let len = messages.len();
+
+    while i < len {
+        let msg = messages[i];
+        i += 1;
+
+        if !msg.upgrade.is_empty() {
+            break;
+        }
+    }
+
+    i
+}
+
+pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
+    let messages = [r1, r2, r3];
+    let message_count = count_parsed_messages(messages.as_slice());
+
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let mut hp = HttpParser::new(r1.tp);
+    hp.strict = r1.strict && r2.strict && r3.strict;
+
+    let mut cb = CallbackRegular{..Default::default()};
+    cb.messages.push(Message{..Default::default()});
+
+    let mut read: u64 = 0;
+
+    read = hp.execute(&mut cb, total.as_bytes());
+
+    if hp.upgrade {
+        upgrade_message_fix(&mut cb, total.as_slice(), read, messages.as_slice());
+
+        assert!(message_count == cb.num_messages,
+                "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+        assert_eq_message(&cb.messages[0], r1);
+        if message_count > 1 {
+            assert_eq_message(&cb.messages[1], r2);
+        }
+        if message_count > 2 {
+            assert_eq_message(&cb.messages[2], r3);
+        }
+        return;
+    }
+
+    if read != (total.len() as u64) {
+        print_error(hp.errno, total.as_bytes(), read);
+        panic!();
+    }
+
+    cb.currently_parsing_eof = true;
+    read = hp.execute(&mut cb, &[]);
+
+    if (read != 0) {
+        print_error(hp.errno, total.as_bytes(), read);
+        panic!();
+    }
+
+    assert!(message_count == cb.num_messages,
+            "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
+    assert_eq_message(&cb.messages[0], r1);
+    if message_count > 1 {
+        assert_eq_message(&cb.messages[1], r2);
+    }
+    if message_count > 2 {
+        assert_eq_message(&cb.messages[2], r3);
+    }
+}
+
+fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: u64, msgs: &[&Message]) {
+    let mut off : u64 = 0;
+
+    for m in msgs.iter() {
+        off += (m.raw.len() as u64);
+
+        if !m.upgrade.is_empty() {
+            off -= (m.upgrade.len() as u64);
+
+            assert_eq!(body.slice_from(off as uint), body.slice_from(read as uint));
+            cb.messages[cb.num_messages-1].upgrade = 
+                body.slice(read as uint, (read+(m.upgrade.len() as u64)) as uint).to_string();
+            return;
+        }
+    }
+
+    panic!("\n\n*** Error: expected a message with upgrade ***\n");
+}
+
+fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
+    print!("i={}  j={}\n", i, j);
+    print!("buf1 ({}) {}\n\n", buf1.len(), buf1);
+    print!("buf2 ({}) {}\n\n", buf2.len(), buf2);
+    print!("buf3 ({}) {}\n\n", buf3.len(), buf3);
+    panic!();
+}
+
+pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
+    let mut total = String::new();
+    total.push_str(r1.raw.as_slice());
+    total.push_str(r2.raw.as_slice());
+    total.push_str(r3.raw.as_slice());
+
+    let total_len = total.len();
+
+    let message_count = count_parsed_messages([r1, r2, r3].as_slice());
+
+    for &is_type_both in [false, true].iter() {
+        for j in range(2, total_len) {
+            for i in range(1, j) {
+                let mut hp = HttpParser::new(if is_type_both { HttpParserType::HttpBoth } else { r1.tp });
+                hp.strict = r1.strict && r2.strict && r3.strict;
+
+                let mut cb = CallbackRegular{..Default::default()};
+                cb.messages.push(Message{..Default::default()});
+
+                let mut read: u64 = 0;
+                let mut done = false;
+                
+                let buf1 = total.as_bytes().slice(0, i);
+                let buf2 = total.as_bytes().slice(i, j);
+                let buf3 = total.as_bytes().slice(j, total_len);
+
+                read = hp.execute(&mut cb, buf1);
+
+                if hp.upgrade {
+                    done = true;
+                } else {
+                    if read != (buf1.len() as u64) {
+                        print_error(hp.errno, buf1, read);
+                        print_test_scan_error(i, j, buf1, buf2, buf3);
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf2);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len()) as u64) {
+                            print_error(hp.errno, buf2, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    read += hp.execute(&mut cb, buf3);
+
+                    if hp.upgrade {
+                        done = true;
+                    } else {
+                        if read != ((buf1.len() + buf2.len() + buf3.len()) as u64) {
+                            print_error(hp.errno, buf3, read);
+                            print_test_scan_error(i, j, buf1, buf2, buf3);
+                        }
+                    }
+                }
+
+                if !done {
+                    cb.currently_parsing_eof = true;
+                    read = hp.execute(&mut cb, &[]);
+                }
+
+                // test
+
+                if hp.upgrade {
+                    upgrade_message_fix(&mut cb, total.as_slice(), read, [r1, r2, r3].as_slice());
+                }
+
+                if message_count != cb.num_messages {
+                    print!("\n\nParser didn't see {} messages only {}\n", message_count, cb.num_messages);
+                    print_test_scan_error(i, j, buf1, buf2, buf3);
+                }
+
+                assert_eq_message(&cb.messages[0], r1);
+                if message_count > 1 {
+                    assert_eq_message(&cb.messages[1], r2);
+                }
+                if message_count > 2 {
+                    assert_eq_message(&cb.messages[2], r3);
+                }
+            }
+        }
+    }
 }
