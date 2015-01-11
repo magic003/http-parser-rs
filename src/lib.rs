@@ -4,14 +4,15 @@
 use std::u64;
 use std::cmp;
 
+pub use self::http_version::HttpVersion;
 pub use self::error::HttpErrno;
 pub use self::http_method::HttpMethod;
 
+mod http_version;
 mod error;
 mod state;
 mod flags;
 mod http_method;
-
 
 #[derive(PartialEq, Eq, Copy)]
 pub enum HttpParserType {
@@ -21,6 +22,15 @@ pub enum HttpParserType {
 }
 
 pub struct HttpParser {
+    pub http_version: HttpVersion,
+    pub errno : error::HttpErrno,
+    pub status_code : u16,                          // response only
+    pub method : http_method::HttpMethod,            // request only
+
+    pub upgrade : bool,
+    
+    pub strict : bool,      // parsing using strict rules
+
     // private
     tp : HttpParserType,
     state : state::State,
@@ -31,16 +41,6 @@ pub struct HttpParser {
     nread : u32,            // bytes read in various scenarios
     content_length : u64,   // bytes in body (0 if no Content-Length header
     
-    // read-only
-    pub http_major : u8,
-    pub http_minor : u8,
-    pub errno : error::HttpErrno,
-    pub status_code : u16,                          // response only
-    pub method : http_method::HttpMethod,            // request only
-
-    pub upgrade : bool,
-    
-    pub strict : bool,      // parsing using strict rules
 }
 
 pub trait HttpParserCallback {
@@ -340,8 +340,7 @@ impl HttpParser {
             index : 0,
             nread : 0,
             content_length: ULLONG_MAX,
-            http_major: 1,
-            http_minor: 0,
+            http_version: HttpVersion { major: 1, minor: 0 },
             errno : error::HttpErrno::Ok,
             status_code : 0,
             method : http_method::HttpMethod::Get,
@@ -520,7 +519,7 @@ impl HttpParser {
                             self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         }
-                        self.http_major = ch - b'0';
+                        self.http_version.major = ch - b'0';
                         self.state = state::State::ResHttpMajor;
                     },
                     state::State::ResHttpMajor => {
@@ -532,10 +531,10 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.http_major *= 10;
-                            self.http_major += ch - b'0';
+                            self.http_version.major *= 10;
+                            self.http_version.major += ch - b'0';
 
-                            if self.http_major > 99 {
+                            if self.http_version.major > 99 {
                                 self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
@@ -547,7 +546,7 @@ impl HttpParser {
                             return index;
                         }
 
-                        self.http_minor = ch - b'0';
+                        self.http_version.minor = ch - b'0';
                         self.state = state::State::ResHttpMinor;
                     },
                     // minor HTTP version or end of request line
@@ -560,10 +559,10 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.http_minor *= 10;
-                            self.http_minor += ch - b'0';
+                            self.http_version.minor *= 10;
+                            self.http_version.minor += ch - b'0';
 
-                            if self.http_minor > 99 {
+                            if self.http_version.minor > 99 {
                                 self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
@@ -803,8 +802,8 @@ impl HttpParser {
                                     error::HttpErrno::CBUrl, index+1);
                             },
                             CR | LF => {
-                                self.http_major = 0;
-                                self.http_minor = 9;
+                                self.http_version.major = 0;
+                                self.http_version.minor = 9;
                                 self.state = if ch == CR {
                                     state::State::ReqLineAlmostDone 
                                 } else {
@@ -857,7 +856,7 @@ impl HttpParser {
                             return index;
                         }
 
-                        self.http_major = ch - b'0';
+                        self.http_version.major = ch - b'0';
                         self.state = state::State::ReqHttpMajor;
                     },
                     // major HTTP version or dot
@@ -870,10 +869,10 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.http_major *= 10;
-                            self.http_major += ch - b'0';
+                            self.http_version.major *= 10;
+                            self.http_version.major += ch - b'0';
 
-                            if self.http_major > 99 {
+                            if self.http_version.major > 99 {
                                 self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
@@ -886,7 +885,7 @@ impl HttpParser {
                             return index;
                         }
 
-                        self.http_minor = ch - b'0';
+                        self.http_version.minor = ch - b'0';
                         self.state = state::State::ReqHttpMinor;
                     },
                     // minor HTTP version or end of request line
@@ -900,10 +899,10 @@ impl HttpParser {
                             self.errno = error::HttpErrno::InvalidVersion;
                             return index;
                         } else {
-                            self.http_minor *= 10;
-                            self.http_minor += ch - b'0';
+                            self.http_version.minor *= 10;
+                            self.http_version.minor += ch - b'0';
 
-                            if self.http_minor > 99 {
+                            if self.http_version.minor > 99 {
                                 self.errno = error::HttpErrno::InvalidVersion;
                                 return index;
                             }
@@ -1682,7 +1681,7 @@ impl HttpParser {
     }
 
     pub fn http_should_keep_alive(&self) -> bool {
-        if self.http_major > 0 && self.http_minor > 0 {
+        if self.http_version.major > 0 && self.http_version.minor > 0 {
             // HTTP/1.1
             if (self.flags & flags::flags::CONNECTION_CLOSE) != 0 {
                 return false

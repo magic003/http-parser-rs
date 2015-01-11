@@ -3,7 +3,7 @@ extern crate http_parser;
 use std::default::Default;
 use std::str;
 
-use self::http_parser::{HttpParser, HttpParserCallback, HttpParserType, HttpMethod, HttpErrno};
+use self::http_parser::{HttpParser, HttpParserCallback, HttpParserType, HttpMethod, HttpErrno, HttpVersion};
 
 #[derive(PartialEq, Eq )]
 pub enum LastHeaderType {
@@ -36,8 +36,7 @@ pub struct Message {
     
     pub upgrade: Option<String>,
 
-    pub http_major: u8,
-    pub http_minor: u8,
+    pub http_version: HttpVersion,
 
     pub message_begin_cb_called: bool,
     pub headers_complete_cb_called: bool,
@@ -72,8 +71,7 @@ impl Default for Message {
 
             upgrade: None,
             
-            http_major: 0,
-            http_minor: 0,
+            http_version: HttpVersion { major: 0, minor: 0 },
 
             message_begin_cb_called: false,
             headers_complete_cb_called: false,
@@ -161,8 +159,7 @@ impl HttpParserCallback for CallbackRegular {
         let m : &mut Message = &mut self.messages[self.num_messages];
         m.method = parser.method;
         m.status_code = parser.status_code;
-        m.http_major = parser.http_major;
-        m.http_minor = parser.http_minor;
+        m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
         Ok(0)
@@ -380,8 +377,7 @@ impl HttpParserCallback for CallbackPause {
             let m : &mut Message = &mut self.messages[self.num_messages];
             m.method = parser.method;
             m.status_code = parser.status_code;
-            m.http_major = parser.http_major;
-            m.http_minor = parser.http_minor;
+            m.http_version = parser.http_version;
             m.headers_complete_cb_called = true;
             m.should_keep_alive = parser.http_should_keep_alive();
             Ok(0)
@@ -523,8 +519,7 @@ impl HttpParserCallback for CallbackCountBody {
         let m : &mut Message = &mut self.messages[self.num_messages];
         m.method = parser.method;
         m.status_code = parser.status_code;
-        m.http_major = parser.http_major;
-        m.http_minor = parser.http_minor;
+        m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
         Ok(0)
@@ -617,8 +612,7 @@ pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
 }
 
 pub fn assert_eq_message(actual: &Message, expected: &Message) {
-    assert_eq!(actual.http_major, expected.http_major);
-    assert_eq!(actual.http_minor, expected.http_minor);
+    assert_eq!(actual.http_version, expected.http_version);
 
     if expected.tp == HttpParserType::Request {
         assert!(actual.method == expected.method);

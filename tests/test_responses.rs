@@ -2,7 +2,7 @@ extern crate http_parser;
 
 use std::default::Default;
 
-use http_parser::{HttpParser, HttpParserType, HttpErrno};
+use http_parser::{HttpParser, HttpParserType, HttpErrno, HttpVersion};
 
 mod helper;
 
@@ -31,8 +31,7 @@ fn test_responses() {
                 <A HREF=\"http://www.google.com/\">here</A>.\r\n\
                 </BODY></HTML>\r\n"),
             should_keep_alive: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -80,8 +79,7 @@ fn test_responses() {
                 </SOAP-ENV:Envelop>"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -113,8 +111,7 @@ fn test_responses() {
             raw: String::from_str("HTTP/1.1 404 Not Found\r\n\r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 404,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -133,8 +130,7 @@ fn test_responses() {
             raw: String::from_str("HTTP/1.1 301\r\n\r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -164,8 +160,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -193,8 +188,7 @@ fn test_responses() {
                 these headers are from http://news.ycombinator.com/"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -222,8 +216,7 @@ fn test_responses() {
                 hello world"),
             should_keep_alive: false,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -251,8 +244,7 @@ fn test_responses() {
                 DCLK_imp: v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o\r\n\r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -286,8 +278,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 0,
+            http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -329,8 +320,7 @@ fn test_responses() {
                 0\r\n\r\n"),
             should_keep_alive: false,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
@@ -365,8 +355,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 500,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -390,8 +379,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 0,
-            http_minor: 9,
+            http_version: HttpVersion { major: 0, minor: 9 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -414,8 +402,7 @@ fn test_responses() {
                 hello world"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -438,8 +425,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 0,
+            http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -463,8 +449,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 0,
+            http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -487,8 +472,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -510,8 +494,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -534,8 +517,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -561,8 +543,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -594,8 +575,7 @@ fn test_responses() {
                 <xml>hello</xml>"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -637,8 +617,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: true,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -668,8 +647,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
-            http_major: 1,
-            http_minor: 1,
+            http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
@@ -726,8 +704,7 @@ fn test_responses() {
                 \r\n"),
             should_keep_alive: false,
             message_complete_on_eof: false,
-            http_major: 1,
-            http_minor: 0,
+            http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
