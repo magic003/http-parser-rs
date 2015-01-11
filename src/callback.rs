@@ -1,5 +1,6 @@
 use parser::HttpParser;
 
+#[derive(Copy)]
 pub enum CallbackDecision {
     Nothing,
     SkipBody,
@@ -8,6 +9,7 @@ pub enum CallbackDecision {
 pub type CallbackResult = Result<CallbackDecision, String>;
 
 pub trait HttpParserCallback {
+    #[allow(unused_variables)]
     fn on_message_begin(&mut self, parser : &mut HttpParser) -> CallbackResult {
         Ok(CallbackDecision::Nothing)
     }
@@ -32,6 +34,7 @@ pub trait HttpParserCallback {
         Ok(CallbackDecision::Nothing)
     }
 
+    #[allow(unused_variables)]
     fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         Ok(CallbackDecision::Nothing)
     }
@@ -41,6 +44,7 @@ pub trait HttpParserCallback {
         Ok(CallbackDecision::Nothing)
     }
 
+    #[allow(unused_variables)]
     fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         Ok(CallbackDecision::Nothing)
     }
