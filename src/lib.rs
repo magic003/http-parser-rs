@@ -40,8 +40,8 @@ pub struct HttpParser {
     flags : u8,
     index : usize,             // index into current matcher
 
-    nread : u32,            // bytes read in various scenarios
-    content_length : u64,   // bytes in body (0 if no Content-Length header
+    nread : usize,            // bytes read in various scenarios
+    content_length : u64,   // bytes in body (0 if no Content-Length header)
     
 }
 
@@ -167,7 +167,7 @@ macro_rules! mark(
     );
 );
 
-const HTTP_MAX_HEADER_SIZE : u32 = 80*1024;
+const HTTP_MAX_HEADER_SIZE : usize = 80*1024;
 const ULLONG_MAX : u64 = u64::MAX - 1;
 
 const CR : u8 = b'\r';
