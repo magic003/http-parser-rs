@@ -8,14 +8,14 @@ mod helper;
 
 #[test]
 fn test_requests() {
-    test_simple("GET / HTP/1.1\r\n\r\n", HttpErrno::InvalidVersion);
+    test_simple("GET / HTP/1.1\r\n\r\n", Option::Some(HttpErrno::InvalidVersion));
 
     // Well-formed but incomplete
     test_simple("GET / HTTP/1.1\r\n\
                  Content-Type: text/plain\r\n\
                  Content-Length: 6\r\n\
                  \r\n\
-                 fooba", HttpErrno::Ok);
+                 fooba", Option::None);
 
     let all_methods = [
         "DELETE",
@@ -48,7 +48,7 @@ fn test_requests() {
         buf.push_str(method);
         buf.push_str(" / HTTP1.1\r\n\r\n");
 
-        test_simple(buf.as_slice(), HttpErrno::Ok);
+        test_simple(buf.as_slice(), Option::None);
     }
 
     let bad_methods = [
@@ -70,14 +70,14 @@ fn test_requests() {
         buf.push_str(method);
         buf.push_str(" / HTTP1.1\r\n\r\n");
 
-        test_simple(buf.as_slice(), HttpErrno::InvalidMethod);
+        test_simple(buf.as_slice(), Option::Some(HttpErrno::InvalidMethod));
     }
 
     // illegal header field name line folding
     test_simple("GET / HTTP/1.1\r\n\
                  name\r\n\
                   :value\r\n\
-                 \r\n", HttpErrno::InvalidHeaderToken);
+                 \r\n", Option::Some(HttpErrno::InvalidHeaderToken));
 
     let dumbfuck2 = 
         "GET / HTTP/1.1\r\n\
@@ -114,7 +114,7 @@ fn test_requests() {
         \tRA==\r\n\
         \t-----END CERTIFICATE-----\r\n\
         \r\n";
-    test_simple(dumbfuck2, HttpErrno::Ok);
+    test_simple(dumbfuck2, Option::None);
 
     // REQUESTS
     let requests = [
@@ -1162,7 +1162,7 @@ fn test_requests() {
                       &requests[CONNECT_REQUEST]);
 }
 
-fn test_simple(buf: &str, err_expected: HttpErrno) {
+fn test_simple(buf: &str, err_expected: Option<HttpErrno>) {
     let mut hp = HttpParser::new(HttpParserType::Request);
 
     let mut cb = helper::CallbackRegular{..Default::default()};
@@ -1174,7 +1174,7 @@ fn test_simple(buf: &str, err_expected: HttpErrno) {
     hp.execute(&mut cb, &[]);
 
     assert!(err_expected == err || 
-            (hp.strict && (err_expected == HttpErrno::Ok || err == HttpErrno::Strict)),
+            (hp.strict && (err_expected.is_none() || err == Option::Some(HttpErrno::Strict))),
             "\n*** test_simple expected {}, but saw {} ***\n\n{}\n", 
-            err_expected.to_string(), err.to_string(), buf);
+            err_expected.unwrap().to_string(), err.unwrap().to_string(), buf);
 }

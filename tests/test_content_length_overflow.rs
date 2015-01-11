@@ -47,8 +47,8 @@ fn test_content_length_overflow(data: &[u8], expect_ok: bool) {
     hp.execute(&mut cb, data);
 
     if expect_ok {
-        assert!(hp.errno == HttpErrno::Ok);
+        assert!(hp.errno.is_none());
     } else {
-        assert!(hp.errno == HttpErrno::InvalidContentLength);
+        assert!(hp.errno == Option::Some(HttpErrno::InvalidContentLength));
     }
 }

@@ -23,7 +23,7 @@ pub enum HttpParserType {
 
 pub struct HttpParser {
     pub http_version: HttpVersion,
-    pub errno : error::HttpErrno,
+    pub errno : Option<HttpErrno>,
     pub status_code : u16,                          // response only
     pub method : http_method::HttpMethod,            // request only
 
@@ -86,22 +86,22 @@ pub trait HttpParserCallback {
 
 macro_rules! ensure_error(
     ($parser:ident) => (
-        if $parser.errno == error::HttpErrno::Ok {
-            $parser.errno = error::HttpErrno::Unknown;
+        if $parser.errno.is_none() {
+            $parser.errno = Option::Some(HttpErrno::Unknown);
         }
     );
 );
 
 macro_rules! assert_ok(
     ($parser:ident) => (
-        assert!($parser.errno == error::HttpErrno::Ok);
+        assert!($parser.errno.is_none());
     );
 );
 
 macro_rules! callback(
     ($parser:ident, $cb:expr, $err:expr) => (
        match $cb {
-           Err(..) => $parser.errno = $err,
+           Err(..) => $parser.errno = Option::Some($err),
            _ => (),
        }
     );
@@ -111,11 +111,11 @@ macro_rules! callback_data(
     ($parser:ident, $mark:ident, $cb:expr, $err:expr, $idx:expr) => (
         if $mark.is_some() {
             match $cb {
-                Err(..) => $parser.errno = $err,
+                Err(..) => $parser.errno = Option::Some($err),
                 _ => (),
             }
 
-            if $parser.errno != error::HttpErrno::Ok {
+            if $parser.errno.is_some() {
                 return $idx;
             }
             // Necessary to reset mark, though it causes unused warning
@@ -137,7 +137,7 @@ macro_rules! start_state(
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
         if $parser.strict && $cond {
-            $parser.errno = error::HttpErrno::Strict;
+            $parser.errno = Option::Some(HttpErrno::Strict);
             return $idx;
         }
     );
@@ -341,7 +341,7 @@ impl HttpParser {
             nread : 0,
             content_length: ULLONG_MAX,
             http_version: HttpVersion { major: 1, minor: 0 },
-            errno : error::HttpErrno::Ok,
+            errno : Option::None,
             status_code : 0,
             method : http_method::HttpMethod::Get,
             upgrade : false,
@@ -358,7 +358,7 @@ impl HttpParser {
         let mut body_mark : Option<u64> = None;
         let mut status_mark : Option<u64> = None;
 
-        if self.errno != error::HttpErrno::Ok {
+        if self.errno.is_some() {
             return 0;
         }
 
@@ -367,8 +367,8 @@ impl HttpParser {
                 state::State::BodyIdentityEof => {
                     assert_ok!(self);
                     callback!(self, cb.on_message_complete(self), 
-                              error::HttpErrno::CBMessageComplete);
-                    if self.errno != error::HttpErrno::Ok {
+                              HttpErrno::CBMessageComplete);
+                    if self.errno.is_some() {
                         return index;
                     }
                     return 0;
@@ -380,7 +380,7 @@ impl HttpParser {
                     return 0;
                 }
                 _ => {
-                   self.errno = error::HttpErrno::InvalidEofState;
+                   self.errno = Option::Some(HttpErrno::InvalidEofState);
                    return 1;
                 }
             }
@@ -426,7 +426,7 @@ impl HttpParser {
                 // than any reasonable request or response so this should never affect
                 // day-to-day operation.
                 if self.nread > HTTP_MAX_HEADER_SIZE {
-                    self.errno = error::HttpErrno::HeaderOverflow;
+                    self.errno = Option::Some(HttpErrno::HeaderOverflow);
                     return index;
                 }
             }
@@ -438,7 +438,7 @@ impl HttpParser {
                 match self.state {
                     state::State::Dead => {
                         if ch != CR && ch != LF {
-                            self.errno = error::HttpErrno::ClosedConnection;
+                            self.errno = Option::Some(HttpErrno::ClosedConnection);
                             return index;
                         }
                     },
@@ -451,8 +451,8 @@ impl HttpParser {
                                 self.state = state::State::ResOrRespH;
                                 assert_ok!(self);
                                 callback!(self, cb.on_message_begin(self),
-                                    error::HttpErrno::CBMessageBegin);
-                                if self.errno != error::HttpErrno::Ok {
+                                    HttpErrno::CBMessageBegin);
+                                if self.errno.is_some() {
                                     return index+1;
                                 }
                             } else {
@@ -468,7 +468,7 @@ impl HttpParser {
                             self.state = state::State::ResHT;
                         } else {
                             if ch != b'E' {
-                                self.errno = error::HttpErrno::InvalidConstant;
+                                self.errno = Option::Some(HttpErrno::InvalidConstant);
                                 return index;
                             }
 
@@ -486,15 +486,15 @@ impl HttpParser {
                             b'H' => self.state = state::State::ResH,
                             CR | LF => (),
                             _ => {
-                                self.errno = error::HttpErrno::InvalidConstant;
+                                self.errno = Option::Some(HttpErrno::InvalidConstant);
                                 return index;
                             },
                         }
                         
                         assert_ok!(self);
                         callback!(self, cb.on_message_begin(self), 
-                                  error::HttpErrno::CBMessageBegin);
-                        if self.errno != error::HttpErrno::Ok {
+                                  HttpErrno::CBMessageBegin);
+                        if self.errno.is_some() {
                             return index+1;
                         }
                     },
@@ -516,7 +516,7 @@ impl HttpParser {
                     },
                     state::State::ResFirstHttpMajor => {
                         if ch < b'0' || ch > b'9' {
-                            self.errno = error::HttpErrno::InvalidVersion;
+                            self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         }
                         self.http_version.major = ch - b'0';
@@ -527,7 +527,7 @@ impl HttpParser {
                             self.state = state::State::ResFirstHttpMinor;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
 
@@ -535,14 +535,14 @@ impl HttpParser {
                             self.http_version.major += ch - b'0';
 
                             if self.http_version.major > 99 {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
                         }
                     },
                     state::State::ResFirstHttpMinor => {
                         if !is_num(ch) {
-                            self.errno = error::HttpErrno::InvalidVersion;
+                            self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         }
 
@@ -555,7 +555,7 @@ impl HttpParser {
                             self.state = state::State::ResFirstStatusCode;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
 
@@ -563,7 +563,7 @@ impl HttpParser {
                             self.http_version.minor += ch - b'0';
 
                             if self.http_version.minor > 99 {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
                         }
@@ -571,7 +571,7 @@ impl HttpParser {
                     state::State::ResFirstStatusCode => {
                         if !is_num(ch) {
                             if ch != b' ' {
-                                self.errno = error::HttpErrno::InvalidStatus;
+                                self.errno = Option::Some(HttpErrno::InvalidStatus);
                                 return index;
                             }
                         } else {
@@ -586,7 +586,7 @@ impl HttpParser {
                                 CR   => self.state = state::State::ResLineAlmostDone,
                                 LF   => self.state = state::State::HeaderFieldStart,
                                 _    => {
-                                    self.errno = error::HttpErrno::InvalidStatus;
+                                    self.errno = Option::Some(HttpErrno::InvalidStatus);
                                     return index;
                                 }
                             }
@@ -595,7 +595,7 @@ impl HttpParser {
                             self.status_code += (ch - b'0') as u16;
 
                             if self.status_code > 999 {
-                                self.errno = error::HttpErrno::InvalidStatus;
+                                self.errno = Option::Some(HttpErrno::InvalidStatus);
                                 return index;
                             }
                         }
@@ -617,13 +617,13 @@ impl HttpParser {
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBStatus, index+1);
+                                HttpErrno::CBStatus, index+1);
                         } else if ch == LF {
                             self.state = state::State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBStatus, index+1);
+                                HttpErrno::CBStatus, index+1);
                         }
                     },
                     state::State::ResLineAlmostDone => {
@@ -636,7 +636,7 @@ impl HttpParser {
                             self.content_length = ULLONG_MAX;
 
                             if !is_alpha(ch) {
-                                self.errno = error::HttpErrno::InvalidMethod;
+                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
 
@@ -657,7 +657,7 @@ impl HttpParser {
                                 b'T' => self.method = http_method::HttpMethod::Trace,
                                 b'U' => self.method = http_method::HttpMethod::Unlock, // or Unsubscribe
                                 _ => {
-                                    self.errno = error::HttpErrno::InvalidMethod;
+                                    self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 },
                             }
@@ -665,15 +665,15 @@ impl HttpParser {
 
                             assert_ok!(self);
                             callback!(self, cb.on_message_begin(self), 
-                                      error::HttpErrno::CBMessageBegin);
-                            if self.errno != error::HttpErrno::Ok {
+                                      HttpErrno::CBMessageBegin);
+                            if self.errno.is_some() {
                                 return index+1;
                             }
                         }
                     },
                     state::State::ReqMethod => {
                         if index == len {
-                            self.errno = error::HttpErrno::InvalidMethod;
+                            self.errno = Option::Some(HttpErrno::InvalidMethod);
                             return index;
                         }
 
@@ -689,7 +689,7 @@ impl HttpParser {
                             } else if self.index == 2 && ch == b'P' {
                                 self.method = http_method::HttpMethod::Copy;
                             } else {
-                                self.errno = error::HttpErrno::InvalidMethod;
+                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
                         } else if self.method == http_method::HttpMethod::MKCol {
@@ -704,14 +704,14 @@ impl HttpParser {
                             } else if self.index == 3 && ch == b'A' {
                                 self.method = http_method::HttpMethod::MKCalendar;
                             } else {
-                                self.errno = error::HttpErrno::InvalidMethod;
+                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
                         } else if self.method == http_method::HttpMethod::Subscribe {
                             if self.index == 1 && ch == b'E' {
                                 self.method = http_method::HttpMethod::Search;
                             } else {
-                                self.errno = error::HttpErrno::InvalidMethod;
+                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
                         } else if self.index == 1 && self.method == http_method::HttpMethod::Post {
@@ -722,7 +722,7 @@ impl HttpParser {
                            } else if ch == b'A' {
                                self.method = http_method::HttpMethod::Patch;
                            } else {
-                               self.errno = error::HttpErrno::InvalidMethod;
+                               self.errno = Option::Some(HttpErrno::InvalidMethod);
                                return index;
                            }
                         } else if self.index == 2 {
@@ -730,24 +730,24 @@ impl HttpParser {
                                 if ch == b'R' {
                                     self.method = http_method::HttpMethod::Purge;
                                 } else {
-                                    self.errno = error::HttpErrno::InvalidMethod;
+                                    self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 }
                             } else if self.method == http_method::HttpMethod::Unlock {
                                 if ch == b'S' {
                                     self.method = http_method::HttpMethod::Unsubscribe;
                                 } else {
-                                    self.errno = error::HttpErrno::InvalidMethod;
+                                    self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 }
                             } else {
-                                self.errno = error::HttpErrno::InvalidMethod;
+                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
                         } else if self.index == 4 && self.method == http_method::HttpMethod::PropFind && ch == b'P' {
                             self.method = http_method::HttpMethod::PropPatch;
                         } else {
-                            self.errno = error::HttpErrno::InvalidMethod;
+                            self.errno = Option::Some(HttpErrno::InvalidMethod);
                             return index;
                         }
 
@@ -762,7 +762,7 @@ impl HttpParser {
 
                             self.state = HttpParser::parse_url_char(self, self.state, ch);
                             if self.state == state::State::Dead {
-                                self.errno = error::HttpErrno::InvalidUrl;
+                                self.errno = Option::Some(HttpErrno::InvalidUrl);
                                 return index;
                             }
                         }
@@ -774,13 +774,13 @@ impl HttpParser {
                         match ch {
                             // No whitespace allowed here
                             b' ' | CR | LF => {
-                                self.errno = error::HttpErrno::InvalidUrl;
+                                self.errno = Option::Some(HttpErrno::InvalidUrl);
                                 return index;
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self, self.state, ch);
                                 if self.state == state::State::Dead {
-                                    self.errno = error::HttpErrno::InvalidUrl;
+                                    self.errno = Option::Some(HttpErrno::InvalidUrl);
                                     return index;
                                 }
                             }
@@ -799,7 +799,7 @@ impl HttpParser {
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
-                                    error::HttpErrno::CBUrl, index+1);
+                                    HttpErrno::CBUrl, index+1);
                             },
                             CR | LF => {
                                 self.http_version.major = 0;
@@ -812,12 +812,12 @@ impl HttpParser {
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
-                                    error::HttpErrno::CBUrl, index+1);
+                                    HttpErrno::CBUrl, index+1);
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self, self.state, ch);
                                 if self.state == state::State::Dead {
-                                    self.errno = error::HttpErrno::InvalidUrl;
+                                    self.errno = Option::Some(HttpErrno::InvalidUrl);
                                     return index;
                                 }
                             }
@@ -828,7 +828,7 @@ impl HttpParser {
                             b'H' => self.state = state::State::ReqHttpH,
                             b' ' => (),
                             _    => {
-                                self.errno = error::HttpErrno::InvalidConstant;
+                                self.errno = Option::Some(HttpErrno::InvalidConstant);
                                 return index;
                             }
                         }
@@ -852,7 +852,7 @@ impl HttpParser {
                     // first digit of major HTTP version
                     state::State::ReqFirstHttpMajor => {
                         if ch < b'1' || ch > b'9' {
-                            self.errno = error::HttpErrno::InvalidVersion;
+                            self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         }
 
@@ -865,7 +865,7 @@ impl HttpParser {
                             self.state = state::State::ReqFirstHttpMinor;
                         } else {
                             if !is_num(ch) {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
 
@@ -873,7 +873,7 @@ impl HttpParser {
                             self.http_version.major += ch - b'0';
 
                             if self.http_version.major > 99 {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
                         }
@@ -881,7 +881,7 @@ impl HttpParser {
                     // first digit of minor HTTP version
                     state::State::ReqFirstHttpMinor => {
                         if !is_num(ch) {
-                            self.errno = error::HttpErrno::InvalidVersion;
+                            self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         }
 
@@ -896,14 +896,14 @@ impl HttpParser {
                             self.state = state::State::HeaderFieldStart;
                         } else if !is_num(ch) {
                             // XXX allow spaces after digit?
-                            self.errno = error::HttpErrno::InvalidVersion;
+                            self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         } else {
                             self.http_version.minor *= 10;
                             self.http_version.minor += ch - b'0';
 
                             if self.http_version.minor > 99 {
-                                self.errno = error::HttpErrno::InvalidVersion;
+                                self.errno = Option::Some(HttpErrno::InvalidVersion);
                                 return index;
                             }
                         }
@@ -911,7 +911,7 @@ impl HttpParser {
                     // end of request line
                     state::State::ReqLineAlmostDone => {
                         if ch != LF {
-                            self.errno = error::HttpErrno::LFExpected;
+                            self.errno = Option::Some(HttpErrno::LFExpected);
                             return index;
                         }
 
@@ -930,7 +930,7 @@ impl HttpParser {
                             let c : Option<u8> = token(self, ch);
 
                             if c.is_none() {
-                                self.errno = error::HttpErrno::InvalidHeaderToken;
+                                self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
                                 return index;
                             }
 
@@ -1045,9 +1045,9 @@ impl HttpParser {
                             assert_ok!(self);
                             callback_data!(self, header_field_mark,
                                 cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBHeaderField, index+1);
+                                HttpErrno::CBHeaderField, index+1);
                         } else {
-                            self.errno = error::HttpErrno::InvalidHeaderToken;
+                            self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
                             return index;
                         }
                     },
@@ -1085,7 +1085,7 @@ impl HttpParser {
                             },
                             state::HeaderState::ContentLength => {
                                 if !is_num(ch) {
-                                    self.errno = error::HttpErrno::InvalidContentLength;
+                                    self.errno = Option::Some(HttpErrno::InvalidContentLength);
                                     return index;
                                 }
 
@@ -1111,13 +1111,13 @@ impl HttpParser {
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBHeaderValue, index+1);
+                                HttpErrno::CBHeaderValue, index+1);
                         } else if ch == LF {
                             self.state = state::State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBHeaderValue, index);
+                                HttpErrno::CBHeaderValue, index);
                             retry = true;
                         } else {
                             let c : u8 = lower(ch);
@@ -1130,7 +1130,7 @@ impl HttpParser {
                                 state::HeaderState::ContentLength => {
                                     if ch != b' ' {
                                         if !is_num(ch) {
-                                            self.errno = error::HttpErrno::InvalidContentLength;
+                                            self.errno = Option::Some(HttpErrno::InvalidContentLength);
                                             return index;
                                         }
 
@@ -1141,7 +1141,7 @@ impl HttpParser {
                                         // Overflow? Test against a conservative
                                         // limit for simplicity
                                         if (ULLONG_MAX - 10) / 10 < self.content_length {
-                                            self.errno = error::HttpErrno::InvalidContentLength;
+                                            self.errno = Option::Some(HttpErrno::InvalidContentLength);
                                             return index;
                                         }
 
@@ -1234,7 +1234,7 @@ impl HttpParser {
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
-                                error::HttpErrno::CBHeaderValue, index);
+                                HttpErrno::CBHeaderValue, index);
                             retry = true;
                         }
                     },
@@ -1246,8 +1246,8 @@ impl HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      error::HttpErrno::CBMessageComplete);
-                            if self.errno != error::HttpErrno::Ok {
+                                      HttpErrno::CBMessageComplete);
+                            if self.errno.is_some() {
                                 return index+1;
                             }
                         } else {
@@ -1273,12 +1273,12 @@ impl HttpParser {
                                 Ok(0) => (),
                                 Ok(1) => self.flags |= flags::flags::SKIPBODY,
                                 _     => {
-                                    self.errno = error::HttpErrno::CBHeadersComplete;
+                                    self.errno = Option::Some(HttpErrno::CBHeadersComplete);
                                     return index; // Error
                                 },
                             }
 
-                            if self.errno != error::HttpErrno::Ok {
+                            if self.errno.is_some() {
                                 return index;
                             }
                             retry = true;
@@ -1293,8 +1293,8 @@ impl HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      error::HttpErrno::CBMessageComplete);
-                            if self.errno != error::HttpErrno::Ok {
+                                      HttpErrno::CBMessageComplete);
+                            if self.errno.is_some() {
                                 return index+1;
                             }
                             return index+1;
@@ -1304,8 +1304,8 @@ impl HttpParser {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      error::HttpErrno::CBMessageComplete);
-                            if self.errno != error::HttpErrno::Ok {
+                                      HttpErrno::CBMessageComplete);
+                            if self.errno.is_some() {
                                 return index+1;
                             }
                         } else if (self.flags & flags::flags::CHUNKED) != 0 {
@@ -1317,8 +1317,8 @@ impl HttpParser {
                                 self.state = new_message!(self);
                                 assert_ok!(self);
                                 callback!(self, cb.on_message_complete(self), 
-                                          error::HttpErrno::CBMessageComplete);
-                                if self.errno != error::HttpErrno::Ok {
+                                          HttpErrno::CBMessageComplete);
+                                if self.errno.is_some() {
                                     return index+1;
                                 }
                             } else if self.content_length != ULLONG_MAX {
@@ -1331,8 +1331,8 @@ impl HttpParser {
                                     self.state = new_message!(self);
                                     assert_ok!(self);
                                     callback!(self, cb.on_message_complete(self), 
-                                              error::HttpErrno::CBMessageComplete);
-                                    if self.errno != error::HttpErrno::Ok {
+                                              HttpErrno::CBMessageComplete);
+                                    if self.errno.is_some() {
                                         return index+1;
                                     }
                                 } else {
@@ -1371,7 +1371,7 @@ impl HttpParser {
                             assert_ok!(self);
                             callback_data!(self, body_mark,
                                 cb.on_body(self, data.slice(body_mark.unwrap() as uint, (index + 1) as uint)),
-                                error::HttpErrno::CBBody, index);
+                                HttpErrno::CBBody, index);
                             retry = true;
                         }
                     },
@@ -1384,8 +1384,8 @@ impl HttpParser {
                         self.state = new_message!(self);
                         assert_ok!(self);
                         callback!(self, cb.on_message_complete(self), 
-                                  error::HttpErrno::CBMessageComplete);
-                        if self.errno != error::HttpErrno::Ok {
+                                  HttpErrno::CBMessageComplete);
+                        if self.errno.is_some() {
                             return index+1;
                         }
                     },
@@ -1395,7 +1395,7 @@ impl HttpParser {
 
                         let unhex_val : i8 = UNHEX[ch as uint];
                         if unhex_val == -1 {
-                            self.errno = error::HttpErrno::InvalidChunkSize;
+                            self.errno = Option::Some(HttpErrno::InvalidChunkSize);
                             return index;
                         }
 
@@ -1413,7 +1413,7 @@ impl HttpParser {
                                 if ch == b';' || ch == b' ' {
                                     self.state = state::State::ChunkParameters;
                                 } else {
-                                    self.errno = error::HttpErrno::InvalidChunkSize;
+                                    self.errno = Option::Some(HttpErrno::InvalidChunkSize);
                                     return index;
                                 }
                             } else {
@@ -1423,7 +1423,7 @@ impl HttpParser {
 
                                 // Overflow? Test against a conservative limit for simplicity
                                 if (ULLONG_MAX - 16)/16 < self.content_length {
-                                    self.errno = error::HttpErrno::InvalidContentLength;
+                                    self.errno = Option::Some(HttpErrno::InvalidContentLength);
                                     return index;
                                 }
 
@@ -1477,7 +1477,7 @@ impl HttpParser {
                         assert_ok!(self);
                         callback_data!(self, body_mark,
                             cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
-                            error::HttpErrno::CBBody, index+1);
+                            HttpErrno::CBBody, index+1);
                     },
                     state::State::ChunkDataDone => {
                         assert!(self.flags & flags::flags::CHUNKED != 0);
@@ -1487,7 +1487,7 @@ impl HttpParser {
                     },
                     //_ => {
                     //    assert!(false, "unhandled state");
-                    //    self.errno = error::HttpErrno::InvalidInternalState;
+                    //    self.errno = HttpErrno::InvalidInternalState;
                     //    return index;
                     //},
                 }
@@ -1515,19 +1515,19 @@ impl HttpParser {
 
         callback_data!(self, header_field_mark,
             cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
-            error::HttpErrno::CBHeaderField, index);
+            HttpErrno::CBHeaderField, index);
         callback_data!(self, header_value_mark,
             cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
-            error::HttpErrno::CBHeaderValue, index);
+            HttpErrno::CBHeaderValue, index);
         callback_data!(self, url_mark,
             cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
-            error::HttpErrno::CBUrl, index);
+            HttpErrno::CBUrl, index);
         callback_data!(self, body_mark,
             cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
-            error::HttpErrno::CBBody, index);
+            HttpErrno::CBBody, index);
         callback_data!(self, status_mark,
             cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
-            error::HttpErrno::CBStatus, index);
+            HttpErrno::CBStatus, index);
         len
     }
 
@@ -1536,11 +1536,11 @@ impl HttpParser {
     }
 
     pub fn pause(&mut self, pause : bool) {
-        if self.errno == error::HttpErrno::Ok || self.errno == error::HttpErrno::Paused {
+        if self.errno.is_none() || self.errno == Option::Some(HttpErrno::Paused) {
             self.errno = if pause {
-                error::HttpErrno::Paused
+                Option::Some(HttpErrno::Paused)
             } else {
-                error::HttpErrno::Ok
+                Option::None
             };
         } else {
             panic!("Attempting to pause parser in error state");

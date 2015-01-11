@@ -2,9 +2,6 @@ use std::string::ToString;
 
 #[derive(PartialEq, Eq, Copy)]
 pub enum HttpErrno {
-    // No error
-    Ok,
-
     // Callback-related errors
     CBMessageBegin,
     CBUrl,
@@ -42,8 +39,6 @@ pub enum HttpErrno {
 impl ToString for HttpErrno {
     fn to_string(&self) -> String {
         let desc = match *self {
-            HttpErrno::Ok => "success",
-
             HttpErrno::CBMessageBegin => "the on_message_begin callback failed",
             HttpErrno::CBUrl => "the on_url callback failed",
             HttpErrno::CBHeaderField => "the on_header_field callback failed",

@@ -49,7 +49,7 @@ fn test_header_overflow(tp: HttpParserType) {
     while !done {
         let parsed = hp.execute(&mut cb, HEADER_LINE.as_bytes());
         if parsed != len {
-            assert!(hp.errno == HttpErrno::HeaderOverflow);
+            assert!(hp.errno == Option::Some(HttpErrno::HeaderOverflow));
             done = true;
         }
     }

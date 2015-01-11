@@ -749,7 +749,7 @@ fn test_message_count_body(msg: &helper::Message) {
         let toread : u64 = std::cmp::min(len-i, chunk);
         read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i as uint, (i + toread) as uint));
         if read != toread {
-            helper::print_error(hp.errno, msg.raw.as_bytes(), read);
+            helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
             panic!();
         }
 
@@ -759,7 +759,7 @@ fn test_message_count_body(msg: &helper::Message) {
     cb.currently_parsing_eof = true;
     read = hp.execute(&mut cb, &[]);
     if read != 0 {
-        helper::print_error(hp.errno, msg.raw.as_bytes(), read);
+        helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
         panic!();
     }
 

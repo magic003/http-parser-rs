@@ -673,7 +673,7 @@ pub fn test_message(message: &Message) {
             }
 
             if read != (i as u64) {
-                print_error(hp.errno, raw.as_bytes(), read);
+                print_error(hp.errno.unwrap(), raw.as_bytes(), read);
                 panic!();
             }
         }
@@ -688,7 +688,7 @@ pub fn test_message(message: &Message) {
         }
 
         if read != ((raw_len - i) as u64) {
-            print_error(hp.errno, raw.as_bytes(), (i + read as uint) as u64);
+            print_error(hp.errno.unwrap(), raw.as_bytes(), (i + read as uint) as u64);
             panic!();
         }
 
@@ -696,7 +696,7 @@ pub fn test_message(message: &Message) {
         read = hp.execute(&mut cb, &[]);
 
         if (read != 0) {
-            print_error(hp.errno, raw.as_bytes(), read);
+            print_error(hp.errno.unwrap(), raw.as_bytes(), read);
             panic!();
         }
 
@@ -729,11 +729,11 @@ pub fn test_message_pause(msg: &Message) {
         }
 
         if read < (raw.len() as u64) {
-            if hp.errno == HttpErrno::Strict {
+            if hp.errno == Option::Some(HttpErrno::Strict) {
                 return;
             }
 
-            assert!(hp.errno == HttpErrno::Paused);
+            assert!(hp.errno == Option::Some(HttpErrno::Paused));
         }
 
         raw = raw.slice_from(read as uint);
@@ -800,7 +800,7 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     }
 
     if read != (total.len() as u64) {
-        print_error(hp.errno, total.as_bytes(), read);
+        print_error(hp.errno.unwrap(), total.as_bytes(), read);
         panic!();
     }
 
@@ -808,7 +808,7 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     read = hp.execute(&mut cb, &[]);
 
     if (read != 0) {
-        print_error(hp.errno, total.as_bytes(), read);
+        print_error(hp.errno.unwrap(), total.as_bytes(), read);
         panic!();
     }
 
@@ -887,7 +887,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                     done = true;
                 } else {
                     if read != (buf1.len() as u64) {
-                        print_error(hp.errno, buf1, read);
+                        print_error(hp.errno.unwrap(), buf1, read);
                         print_test_scan_error(i, j, buf1, buf2, buf3);
                     }
                 }
@@ -899,7 +899,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                         done = true;
                     } else {
                         if read != ((buf1.len() + buf2.len()) as u64) {
-                            print_error(hp.errno, buf2, read);
+                            print_error(hp.errno.unwrap(), buf2, read);
                             print_test_scan_error(i, j, buf1, buf2, buf3);
                         }
                     }
@@ -912,7 +912,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                         done = true;
                     } else {
                         if read != ((buf1.len() + buf2.len() + buf3.len()) as u64) {
-                            print_error(hp.errno, buf3, read);
+                            print_error(hp.errno.unwrap(), buf3, read);
                             print_test_scan_error(i, j, buf1, buf2, buf3);
                         }
                     }
