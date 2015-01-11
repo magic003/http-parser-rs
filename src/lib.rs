@@ -5,7 +5,7 @@ pub use self::parser::{HttpParser, HttpParserType};
 pub use self::http_version::HttpVersion;
 pub use self::error::HttpErrno;
 pub use self::http_method::HttpMethod;
-pub use self::callback::HttpParserCallback;
+pub use self::callback::{HttpParserCallback, CallbackResult, CallbackDecision};
 
 mod parser;
 mod http_version;

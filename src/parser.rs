@@ -6,7 +6,7 @@ use flags::flags;
 use error::HttpErrno;
 use http_method::HttpMethod;
 use http_version::HttpVersion;
-use callback::HttpParserCallback;
+use callback::{HttpParserCallback, CallbackDecision, CallbackResult};
 
 #[derive(PartialEq, Eq, Copy)]
 pub enum HttpParserType {
@@ -1224,8 +1224,8 @@ impl HttpParser {
                             //
                             // TODO can we handle this in our case?
                             match cb.on_headers_complete(self) {
-                                Ok(0) => (),
-                                Ok(1) => self.flags |= flags::SKIPBODY,
+                                Ok(CallbackDecision::Nothing) => (),
+                                Ok(CallbackDecision::SkipBody) => self.flags |= flags::SKIPBODY,
                                 _     => {
                                     self.errno = Option::Some(HttpErrno::CBHeadersComplete);
                                     return index; // Error

@@ -1,6 +1,6 @@
 extern crate http_parser;
 
-use self::http_parser::{HttpParser, HttpParserType, HttpParserCallback};
+use self::http_parser::*;
 
 #[test]
 fn test_interface() {
@@ -9,8 +9,8 @@ fn test_interface() {
     struct Callback;
 
     impl HttpParserCallback for Callback {
-        fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
-            Ok(1)
+        fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
+            Ok(CallbackDecision::Nothing)
         }
     }
 

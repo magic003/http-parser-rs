@@ -3,7 +3,7 @@ extern crate http_parser;
 use std::default::Default;
 use std::str;
 
-use self::http_parser::{HttpParser, HttpParserCallback, HttpParserType, HttpMethod, HttpErrno, HttpVersion};
+use self::http_parser::*;
 
 #[derive(PartialEq, Eq )]
 pub enum LastHeaderType {
@@ -103,22 +103,22 @@ impl Default for CallbackRegular {
 }
 
 impl HttpParserCallback for CallbackRegular {
-    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> CallbackResult {
         self.messages[self.num_messages].message_begin_cb_called = true;
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         self.messages[self.num_messages].request_url.push_all(data);
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         self.messages[self.num_messages].response_status.push_all(data);
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         if m.last_header_element != LastHeaderType::Field {
@@ -136,10 +136,10 @@ impl HttpParserCallback for CallbackRegular {
 
         m.last_header_element = LastHeaderType::Field;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         match str::from_utf8(data) {
@@ -152,20 +152,20 @@ impl HttpParserCallback for CallbackRegular {
 
         m.last_header_element = LastHeaderType::Value;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
         m.method = parser.method;
         m.status_code = parser.status_code;
         m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         match str::from_utf8(data) {
@@ -183,10 +183,10 @@ impl HttpParserCallback for CallbackRegular {
         }
 
         m.body_is_final = parser.http_body_is_final();
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         {
             let m : &mut Message = &mut self.messages[self.num_messages];
 
@@ -210,56 +210,56 @@ impl HttpParserCallback for CallbackRegular {
         self.messages.push(Message{..Default::default()});
         self.num_messages += 1;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 }
 
 pub struct CallbackDontCall;
 
 impl HttpParserCallback for CallbackDontCall {
-    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> CallbackResult {
         panic!("\n\n*** on_message_begin() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
     #[allow(unused_variables)]
-    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> CallbackResult {
         panic!("\n\n*** on_url() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
     #[allow(unused_variables)]
-    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         panic!("\n\n*** on_status() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
     #[allow(unused_variables)]
-    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         panic!("\n\n*** on_header_field() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
     #[allow(unused_variables)]
-    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         panic!("\n\n*** on_header_value() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         panic!("\n\n*** on_headers_complete() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
     #[allow(unused_variables)]
-    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         panic!("\n\n*** on_body() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         panic!("\n\n*** on_message_complete() called on paused parser ***\n\n");
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 }
 
@@ -286,40 +286,40 @@ impl Default for CallbackPause {
 
 // TODO try to reuse code from CallbackRegular
 impl HttpParserCallback for CallbackPause {
-    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> CallbackResult {
         if self.paused {
             self.dontcall.on_message_begin(parser)
         } else {
             parser.pause(true);
             self.paused = true;
             self.messages[self.num_messages].message_begin_cb_called = true;
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8],) -> CallbackResult {
         if self.paused {
             self.dontcall.on_url(parser, data)
         } else {
             parser.pause(true);
             self.paused = true;
             self.messages[self.num_messages].request_url.push_all(data);
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         if self.paused {
             self.dontcall.on_status(parser, data)
         } else {
             parser.pause(true);
             self.paused = true;
             self.messages[self.num_messages].response_status.push_all(data);
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         if self.paused {
             self.dontcall.on_header_field(parser, data)
         } else {
@@ -342,11 +342,11 @@ impl HttpParserCallback for CallbackPause {
 
             m.last_header_element = LastHeaderType::Field;
 
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         if self.paused {
             self.dontcall.on_header_value(parser, data)
         } else {
@@ -364,11 +364,11 @@ impl HttpParserCallback for CallbackPause {
 
             m.last_header_element = LastHeaderType::Value;
 
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         if self.paused {
             self.dontcall.on_headers_complete(parser)
         } else {
@@ -380,11 +380,11 @@ impl HttpParserCallback for CallbackPause {
             m.http_version = parser.http_version;
             m.headers_complete_cb_called = true;
             m.should_keep_alive = parser.http_should_keep_alive();
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         if self.paused {
             self.dontcall.on_body(parser, data)
         } else {
@@ -407,11 +407,11 @@ impl HttpParserCallback for CallbackPause {
             }
 
             m.body_is_final = parser.http_body_is_final();
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 
-    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         if self.paused {
             self.dontcall.on_message_complete(parser)
         } else {
@@ -440,7 +440,7 @@ impl HttpParserCallback for CallbackPause {
             self.messages.push(Message{..Default::default()});
             self.num_messages += 1;
 
-            Ok(0)
+            Ok(CallbackDecision::Nothing)
         }
     }
 }
@@ -463,22 +463,22 @@ impl Default for CallbackCountBody {
 
 // find a way to reuse the code in CallbackRegular
 impl HttpParserCallback for CallbackCountBody {
-    fn on_message_begin(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_begin(&mut self, parser : &mut HttpParser) -> CallbackResult {
         self.messages[self.num_messages].message_begin_cb_called = true;
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         self.messages[self.num_messages].request_url.push_all(data);
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         self.messages[self.num_messages].response_status.push_all(data);
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_field(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         if m.last_header_element != LastHeaderType::Field {
@@ -496,10 +496,10 @@ impl HttpParserCallback for CallbackCountBody {
 
         m.last_header_element = LastHeaderType::Field;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_header_value(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         match str::from_utf8(data) {
@@ -512,20 +512,20 @@ impl HttpParserCallback for CallbackCountBody {
 
         m.last_header_element = LastHeaderType::Value;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
         m.method = parser.method;
         m.status_code = parser.status_code;
         m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> Result<i8, &str> {
+    fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         m.body_size += data.len();
@@ -537,10 +537,10 @@ impl HttpParserCallback for CallbackCountBody {
         }
 
         m.body_is_final = parser.http_body_is_final();
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 
-    fn on_message_complete(&mut self, parser : &mut HttpParser) -> Result<i8, &str> {
+    fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
         {
             let m : &mut Message = &mut self.messages[self.num_messages];
 
@@ -564,7 +564,7 @@ impl HttpParserCallback for CallbackCountBody {
         self.messages.push(Message{..Default::default()});
         self.num_messages += 1;
 
-        Ok(0)
+        Ok(CallbackDecision::Nothing)
     }
 }
 pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
