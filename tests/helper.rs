@@ -568,7 +568,7 @@ impl HttpParserCallback for CallbackCountBody {
     }
 }
 pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
-    println!("\n*** {} ***\n", errno.to_string());
+    println!("\n*** {} ***\n", errno);
 
     let len = raw.len();
     let mut this_line = false;
