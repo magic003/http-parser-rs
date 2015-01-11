@@ -38,7 +38,7 @@ pub struct HttpParser {
     state : State,
     header_state : HeaderState,
     flags : u8,
-    index : uint,             // index into current matcher
+    index : usize,             // index into current matcher
 
     nread : u32,            // bytes read in various scenarios
     content_length : u64,   // bytes in body (0 if no Content-Length header
@@ -290,14 +290,14 @@ const UNHEX : [i8; 256] = [
 
 fn token(hp : &HttpParser, ch :u8) -> Option<u8> {
     if hp.strict {
-        TOKEN[ch as uint]
+        TOKEN[ch as usize]
     } else {
-        if ch == b' ' { Some(b' ') } else { TOKEN[ch as uint] }
+        if ch == b' ' { Some(b' ') } else { TOKEN[ch as usize] }
     }
 }
 
 fn is_url_char(hp : &HttpParser, ch : u8) -> bool {
-    let res = (NORMAL_URL_CHAR[(ch >> 3) as uint] & (1 << ((ch & 7) as uint))) != 0;
+    let res = (NORMAL_URL_CHAR[(ch >> 3) as usize] & (1 << ((ch & 7) as usize))) != 0;
     res || (!hp.strict && (ch & 0x80) > 0)
 }
 
@@ -411,7 +411,7 @@ impl HttpParser {
         }
 
         while index < len {
-            let ch = data[index as uint];
+            let ch = data[index as usize];
             if self.state <= State::HeadersDone {
                 self.nread += 1;
 
@@ -618,13 +618,13 @@ impl HttpParser {
                             self.state = State::ResLineAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
-                                cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
+                                cb.on_status(self, data.slice(status_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBStatus, index+1);
                         } else if ch == LF {
                             self.state = State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
-                                cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
+                                cb.on_status(self, data.slice(status_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBStatus, index+1);
                         }
                     },
@@ -800,7 +800,7 @@ impl HttpParser {
                                 self.state = State::ReqHttpStart;
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
-                                    cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
+                                    cb.on_url(self, data.slice(url_mark.unwrap() as usize, index as usize)),
                                     HttpErrno::CBUrl, index+1);
                             },
                             CR | LF => {
@@ -813,7 +813,7 @@ impl HttpParser {
                                 };
                                 assert_ok!(self);
                                 callback_data!(self, url_mark,
-                                    cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
+                                    cb.on_url(self, data.slice(url_mark.unwrap() as usize, index as usize)),
                                     HttpErrno::CBUrl, index+1);
                             },
                             _ => {
@@ -1046,7 +1046,7 @@ impl HttpParser {
                             self.state = State::HeaderValueDiscardWs;
                             assert_ok!(self);
                             callback_data!(self, header_field_mark,
-                                cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
+                                cb.on_header_field(self, data.slice(header_field_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBHeaderField, index+1);
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
@@ -1112,13 +1112,13 @@ impl HttpParser {
                             self.state = State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBHeaderValue, index+1);
                         } else if ch == LF {
                             self.state = State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBHeaderValue, index);
                             retry = true;
                         } else {
@@ -1235,7 +1235,7 @@ impl HttpParser {
                             self.state = State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
+                                cb.on_header_value(self, data.slice(header_value_mark.unwrap() as usize, index as usize)),
                                 HttpErrno::CBHeaderValue, index);
                             retry = true;
                         }
@@ -1372,7 +1372,7 @@ impl HttpParser {
                             // important for applications, but let's keep it for now.
                             assert_ok!(self);
                             callback_data!(self, body_mark,
-                                cb.on_body(self, data.slice(body_mark.unwrap() as uint, (index + 1) as uint)),
+                                cb.on_body(self, data.slice(body_mark.unwrap() as usize, (index + 1) as usize)),
                                 HttpErrno::CBBody, index);
                             retry = true;
                         }
@@ -1395,7 +1395,7 @@ impl HttpParser {
                         assert!(self.nread == 1);
                         assert!(self.flags & flags::flags::CHUNKED != 0);
 
-                        let unhex_val : i8 = UNHEX[ch as uint];
+                        let unhex_val : i8 = UNHEX[ch as usize];
                         if unhex_val == -1 {
                             self.errno = Option::Some(HttpErrno::InvalidChunkSize);
                             return index;
@@ -1410,7 +1410,7 @@ impl HttpParser {
                         if ch == CR {
                             self.state = State::ChunkSizeAlmostDone;
                         } else {
-                            let unhex_val : i8 = UNHEX[ch as uint];
+                            let unhex_val : i8 = UNHEX[ch as usize];
                             if unhex_val == -1 {
                                 if ch == b';' || ch == b' ' {
                                     self.state = State::ChunkParameters;
@@ -1478,7 +1478,7 @@ impl HttpParser {
 
                         assert_ok!(self);
                         callback_data!(self, body_mark,
-                            cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
+                            cb.on_body(self, data.slice(body_mark.unwrap() as usize, index as usize)),
                             HttpErrno::CBBody, index+1);
                     },
                     State::ChunkDataDone => {
@@ -1516,19 +1516,19 @@ impl HttpParser {
                 (if status_mark.is_some() { 1 } else { 0 }) <= 1);
 
         callback_data!(self, header_field_mark,
-            cb.on_header_field(self, data.slice(header_field_mark.unwrap() as uint, index as uint)),
+            cb.on_header_field(self, data.slice(header_field_mark.unwrap() as usize, index as usize)),
             HttpErrno::CBHeaderField, index);
         callback_data!(self, header_value_mark,
-            cb.on_header_value(self, data.slice(header_value_mark.unwrap() as uint, index as uint)),
+            cb.on_header_value(self, data.slice(header_value_mark.unwrap() as usize, index as usize)),
             HttpErrno::CBHeaderValue, index);
         callback_data!(self, url_mark,
-            cb.on_url(self, data.slice(url_mark.unwrap() as uint, index as uint)),
+            cb.on_url(self, data.slice(url_mark.unwrap() as usize, index as usize)),
             HttpErrno::CBUrl, index);
         callback_data!(self, body_mark,
-            cb.on_body(self, data.slice(body_mark.unwrap() as uint, index as uint)),
+            cb.on_body(self, data.slice(body_mark.unwrap() as usize, index as usize)),
             HttpErrno::CBBody, index);
         callback_data!(self, status_mark,
-            cb.on_status(self, data.slice(status_mark.unwrap() as uint, index as uint)),
+            cb.on_status(self, data.slice(status_mark.unwrap() as usize, index as usize)),
             HttpErrno::CBStatus, index);
         len
     }
