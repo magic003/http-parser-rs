@@ -41,7 +41,7 @@ fn test_chunk_content_length_overflow() {
 }
 
 fn test_content_length_overflow(data: &[u8], expect_ok: bool) {
-    let mut hp = HttpParser::new(HttpParserType::HttpResponse);
+    let mut hp = HttpParser::new(HttpParserType::Response);
     let mut cb = helper::CallbackEmpty;
 
     hp.execute(&mut cb, data);

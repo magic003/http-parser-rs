@@ -9,22 +9,22 @@ const HEADER_LINE : &'static str = "header-key: header-value\r\n";
 
 #[test]
 fn test_request_header() {
-    test_header(HttpParserType::HttpRequest);
+    test_header(HttpParserType::Request);
 }
 
 #[test]
 fn test_request_header_overflow() {
-    test_header_overflow(HttpParserType::HttpRequest);
+    test_header_overflow(HttpParserType::Request);
 }
 
 #[test]
 fn test_response_header() {
-    test_header(HttpParserType::HttpResponse);
+    test_header(HttpParserType::Response);
 }
 
 #[test]
 fn test_response_header_overflow() {
-    test_header_overflow(HttpParserType::HttpResponse);
+    test_header_overflow(HttpParserType::Response);
 }
 
 fn test_header(tp : HttpParserType) {
@@ -57,7 +57,7 @@ fn test_header_overflow(tp: HttpParserType) {
 }
 
 fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : &mut CB, tp : HttpParserType) {
-    let line = if tp == HttpParserType::HttpRequest {
+    let line = if tp == HttpParserType::Request {
         "GET / HTTP/1.1\r\n"
     } else {
         "HTTP/1.0 200 OK\r\n"

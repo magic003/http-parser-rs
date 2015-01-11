@@ -51,7 +51,7 @@ impl Default for Message {
         Message {
             name: String::new() ,
             raw: String::new(),
-            tp: HttpParserType::HttpBoth,
+            tp: HttpParserType::Both,
             strict: true,
             method: HttpMethod::Delete,
             status_code: 0,
@@ -620,7 +620,7 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
     assert_eq!(actual.http_major, expected.http_major);
     assert_eq!(actual.http_minor, expected.http_minor);
 
-    if expected.tp == HttpParserType::HttpRequest {
+    if expected.tp == HttpParserType::Request {
         assert!(actual.method == expected.method);
     } else {
         assert_eq!(actual.status_code, expected.status_code);
@@ -874,7 +874,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
     for &is_type_both in [false, true].iter() {
         for j in range(2, total_len) {
             for i in range(1, j) {
-                let mut hp = HttpParser::new(if is_type_both { HttpParserType::HttpBoth } else { r1.tp });
+                let mut hp = HttpParser::new(if is_type_both { HttpParserType::Both } else { r1.tp });
                 hp.strict = r1.strict && r2.strict && r3.strict;
 
                 let mut cb = CallbackRegular{..Default::default()};

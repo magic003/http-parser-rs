@@ -120,7 +120,7 @@ fn test_requests() {
     let requests = [
         helper::Message {
             name: String::from_str("curl get"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /test HTTP/1.1\r\n\
                 User-Agent: curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1\r\n\
@@ -151,7 +151,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("firefox get"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /favicon.ico HTTP/1.1\r\n\
                 Host: 0.0.0.0=5000\r\n\
@@ -192,7 +192,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("dumbfuck"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /dumbfuck HTTP/1.1\r\n\
                 aaaaaaaaaaaaa: ++++++++++\r\n\
@@ -219,7 +219,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("fragment in url"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n\
                 \r\n"),
@@ -242,7 +242,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("get no headers no body"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /get_no_headers_no_body/world HTTP/1.1\r\n\
                 \r\n"),
@@ -265,7 +265,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("get one header no body"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /get_one_header_no_body/world HTTP/1.1\r\n\
                 Accept: */*\r\n\
@@ -292,7 +292,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("get funky content length body hello"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /get_funky_content_length_body_hello HTTP/1.0\r\n\
                 conTENT-Length: 5\r\n\
@@ -320,7 +320,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("post - chunked body: all your base are belong to us"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "POST /post_chunked_all_your_base HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
@@ -350,7 +350,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("two chunks ; triple zero ending"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "POST /two_chunks_mult_zero_end HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
@@ -381,7 +381,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("chunked with trailing headers. blech."),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "POST /chunked_w_trailing_headers HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
@@ -416,7 +416,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("with bullshit after the length"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "POST /chunked_w_bullshit_after_length HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
@@ -447,7 +447,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("with quotes"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\
                 \r\n"),
@@ -470,7 +470,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("apachebench get"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /test HTTP/1.0\r\n\
                 Host: 0.0.0.0:5000\r\n\
@@ -501,7 +501,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("query url with question mark"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /test.cgi?foo=bar?baz HTTP/1.1\r\n\
                 \r\n"),
@@ -524,7 +524,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("newline prefix get"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "\r\nGET /test HTTP/1.1\r\n\
                 \r\n"),
@@ -547,7 +547,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("upgrade request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /demo HTTP/1.1\r\n\
                 Host: example.com\r\n\
@@ -588,7 +588,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("connect request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "CONNECT 0-home0.netscape.com:443 HTTP/1.0\r\n\
                 User-agent: Mozilla/1.1N\r\n\
@@ -620,7 +620,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("report request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "REPORT /test HTTP/1.1\r\n\
                 \r\n"),
@@ -643,7 +643,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("request with no http version"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /\r\n\
                 \r\n"),
@@ -666,7 +666,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("m-search request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "M-SEARCH * HTTP/1.1\r\n\
                 HOST: 239.255.255.250:1900\r\n\
@@ -697,7 +697,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("line folding in header value"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET / HTTP/1.1\r\n\
                 Line1:    abc\r\n\tdef\r\n ghi\r\n\t\tjkl\r\n  mno \r\n\t \tqrs\r\n\
@@ -732,7 +732,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("host terminated by a query string"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET http://hypnotoad.org?hail=all HTTP/1.1\r\n\
                 \r\n"),
@@ -756,7 +756,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("host:port terminated by a query string"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET http://hypnotoad.org:1234?hail=all HTTP/1.1\r\n\
                 \r\n"),
@@ -781,7 +781,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("host:port terminated by a space"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET http://hypnotoad.org:1234 HTTP/1.1\r\n\
                 \r\n"),
@@ -806,7 +806,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("PATCH request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "PATCH /file.txt HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
@@ -840,7 +840,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("connect caps request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\n\
                 User-agent: Mozilla/1.1N\r\n\
@@ -870,7 +870,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("utf-8 path request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             strict: false,
             raw: String::from_str( 
                 "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n\
@@ -898,7 +898,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("hostname underscore"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             strict: false,
             raw: String::from_str( 
                 "CONNECT home_0.netscape.com:443 HTTP/1.0\r\n\
@@ -993,7 +993,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("PURGE request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "PURGE /file.txt HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
@@ -1020,7 +1020,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("SEARCH request"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "SEARCH / HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
@@ -1047,7 +1047,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("host:port and basic_auth"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET http://a%12:b!&*$@hypnotoad.org:1234/toto HTTP/1.1\r\n\
                 \r\n"),
@@ -1073,7 +1073,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("line folding in header value"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET / HTTP/1.1\r\n\
                 Line1:    abc\n\tdef\n ghi\n\t\tjkl\n mno \n\t \tqrs\n\
@@ -1108,7 +1108,7 @@ fn test_requests() {
         },
         helper::Message {
             name: String::from_str("multiple connection header values with folding"),
-            tp: HttpParserType::HttpRequest,
+            tp: HttpParserType::Request,
             raw: String::from_str( 
                 "GET /demo HTTP/1.1\r\n\
                 Host: example.com\r\n\
@@ -1198,7 +1198,7 @@ fn test_requests() {
 }
 
 fn test_simple(buf: &str, err_expected: HttpErrno) {
-    let mut hp = HttpParser::new(HttpParserType::HttpRequest);
+    let mut hp = HttpParser::new(HttpParserType::Request);
 
     let mut cb = helper::CallbackRegular{..Default::default()};
     cb.messages.push(helper::Message{..Default::default()});

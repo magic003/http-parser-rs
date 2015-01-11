@@ -6,21 +6,21 @@ mod helper;
 
 #[test]
 fn test_no_overflow_long_body_request() {
-    test_no_overflow_long_body(HttpParserType::HttpRequest, 1000);
-    test_no_overflow_long_body(HttpParserType::HttpRequest, 100000);
+    test_no_overflow_long_body(HttpParserType::Request, 1000);
+    test_no_overflow_long_body(HttpParserType::Request, 100000);
 }
 
 #[test]
 fn test_no_overflow_long_body_response() {
-    test_no_overflow_long_body(HttpParserType::HttpResponse, 1000);
-    test_no_overflow_long_body(HttpParserType::HttpResponse, 100000);
+    test_no_overflow_long_body(HttpParserType::Response, 1000);
+    test_no_overflow_long_body(HttpParserType::Response, 100000);
 }
 
 fn test_no_overflow_long_body(tp: HttpParserType, length: u64) {
     let mut hp = HttpParser::new(tp);
     let mut cb = helper::CallbackEmpty;
     
-    let line = if tp == HttpParserType::HttpRequest {
+    let line = if tp == HttpParserType::Request {
         "POST / HTTP/1.0"
     } else {
         "HTTP/1.0 200 OK"

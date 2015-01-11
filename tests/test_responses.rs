@@ -12,7 +12,7 @@ fn test_responses() {
     let responses: [helper::Message; 22] = [
         helper::Message {
             name: String::from_str("google 301"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 301 Moved Permanently\r\n\
                 Location: http://www.google.com/\r\n\
@@ -60,7 +60,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("no content-length response"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n\
@@ -109,7 +109,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("404 no headers no body"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str("HTTP/1.1 404 Not Found\r\n\r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
@@ -129,7 +129,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("301 no response phrase"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str("HTTP/1.1 301\r\n\r\n"),
             should_keep_alive: false,
             message_complete_on_eof: true,
@@ -148,7 +148,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("200 trailing space on chunked body"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/plain\r\n\
@@ -184,7 +184,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("no carriage ret"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\n\
                 Content-Type: text/html; charset=utf-8\n\
@@ -211,7 +211,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("proxy connection"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/html; charset=UTF-8\r\n\
@@ -242,7 +242,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("underscore header key"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Server: DCLK-AdSvr\r\n\
@@ -271,7 +271,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("bonjourmadame.fr"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.0 301 Moved Permanently\r\n\
                 Date: Thu, 03 Jun 2010 09:56:32 GMT\r\n\
@@ -311,7 +311,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("field underscore"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Date: Tue, 28 Sep 2010 01:14:13 GMT\r\n\
@@ -356,7 +356,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("non-ASCII in status line"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 500 Oriëntatieprobleem\r\n\
                 Date: Fri, 5 Nov 2010 23:07:12 GMT+2\r\n\
@@ -384,7 +384,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("http version 0.9"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/0.9 200 OK\r\n\
                 \r\n"),
@@ -406,7 +406,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("neither content-length nor transfer-encoding response"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/plain\r\n\
@@ -431,7 +431,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.0 with keep-alive and EOF-terminated 200 status"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.0 200 OK\r\n\
                 Connection: keep-alive\r\n\
@@ -456,7 +456,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.0 with keep-alive and a 204 status"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.0 204 No content\r\n\
                 Connection: keep-alive\r\n\
@@ -481,7 +481,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.1 with an EOF-terminated 200 status"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 \r\n"),
@@ -504,7 +504,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.1 with a 204 status"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 204 No content\r\n\
                 \r\n"),
@@ -527,7 +527,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.1 with a 204 status and keep-alive disabled"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 204 No content\r\n\
                 Connection: close\r\n\
@@ -552,7 +552,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("HTTP/1.1 with chunked encoding and a 200 response"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
                 Transfer-Encoding: chunked\r\n\
@@ -579,7 +579,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("field space"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             strict: false,
             raw: String::from_str(
                 "HTTP/1.1 200 OK\r\n\
@@ -617,7 +617,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("amazon.com"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             strict: false,
             raw: String::from_str(
                 "HTTP/1.1 301 MovedPermanently\r\n\
@@ -662,7 +662,7 @@ fn test_responses() {
         },
         helper::Message {
             name: String::from_str("empty reason phrase after space"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: String::from_str(
                 "HTTP/1.1 200 \r\n\
                 \r\n"),
@@ -718,7 +718,7 @@ fn test_responses() {
     {
         let large_chunked = helper::Message {
             name: String::from_str("large chunked"),
-            tp: HttpParserType::HttpResponse,
+            tp: HttpParserType::Response,
             raw: create_large_chunked_message(31337,
                 "HTTP/1.0 200 OK\r\n\
                 Transfer-Encoding: chunked\r\n\

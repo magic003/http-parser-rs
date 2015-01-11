@@ -4,7 +4,7 @@ use self::http_parser::{HttpParser, HttpParserType, HttpParserCallback};
 
 #[test]
 fn test_interface() {
-    let mut hp = HttpParser::new(HttpParserType::HttpBoth);
+    let mut hp = HttpParser::new(HttpParserType::Both);
     
     struct Callback;
 

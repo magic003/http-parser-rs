@@ -1,7 +1,5 @@
-#![warn(experimental)]
-#![allow(experimental)]
-
-extern crate collections;
+#![crate_name = "http_parser"]
+#![experimental]
 
 use std::u64;
 use std::cmp;
@@ -17,9 +15,9 @@ mod http_method;
 
 #[derive(PartialEq, Eq, Copy)]
 pub enum HttpParserType {
-    HttpRequest,
-    HttpResponse,
-    HttpBoth,
+    Request,
+    Response,
+    Both,
 }
 
 pub struct HttpParser {
@@ -128,7 +126,7 @@ macro_rules! callback_data(
 
 macro_rules! start_state(
     ($parser:ident) => (
-        if $parser.tp == HttpParserType::HttpRequest {
+        if $parser.tp == HttpParserType::Request {
             state::State::StartReq
         } else {
             state::State::StartRes
@@ -333,9 +331,9 @@ impl HttpParser {
         HttpParser { 
             tp : tp,  
             state : match tp {
-                        HttpParserType::HttpRequest     => state::State::StartReq,
-                        HttpParserType::HttpResponse    => state::State::StartRes,
-                        HttpParserType::HttpBoth        => state::State::StartReqOrRes,
+                        HttpParserType::Request     => state::State::StartReq,
+                        HttpParserType::Response    => state::State::StartRes,
+                        HttpParserType::Both        => state::State::StartReqOrRes,
                     },
             header_state : state::HeaderState::General,
             flags : 0,
@@ -459,7 +457,7 @@ impl HttpParser {
                                     return index+1;
                                 }
                             } else {
-                                self.tp = HttpParserType::HttpRequest;
+                                self.tp = HttpParserType::Request;
                                 self.state = state::State::StartReq;
                                 retry = true;
                             }
@@ -467,7 +465,7 @@ impl HttpParser {
                     },
                     state::State::ResOrRespH => {
                         if ch == b'T' {
-                            self.tp = HttpParserType::HttpResponse;
+                            self.tp = HttpParserType::Response;
                             self.state = state::State::ResHT;
                         } else {
                             if ch != b'E' {
@@ -475,7 +473,7 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.tp = HttpParserType::HttpRequest;
+                            self.tp = HttpParserType::Request;
                             self.method = http_method::HttpMethod::Head;
                             self.index = 2;
                             self.state = state::State::ReqMethod;
@@ -1328,7 +1326,7 @@ impl HttpParser {
                                 // Content-Length header given and non-zero
                                 self.state = state::State::BodyIdentity;
                             } else {
-                                if self.tp == HttpParserType::HttpRequest ||
+                                if self.tp == HttpParserType::Request ||
                                     !self.http_message_needs_eof() {
                                     // Assume content-length 0 - read the next
                                     self.state = new_message!(self);
@@ -1663,7 +1661,7 @@ impl HttpParser {
 
     // Does the parser need to see an EOF to find the end of the message?
     fn http_message_needs_eof(&self) -> bool {
-        if self.tp == HttpParserType::HttpRequest {
+        if self.tp == HttpParserType::Request {
             return false
         }
 

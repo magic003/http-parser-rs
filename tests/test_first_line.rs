@@ -8,13 +8,13 @@ mod helper;
 #[test]
 fn test_request_line() {
     let line : &str = "GET / HTTP/1.1\r\n";
-    test_first_line(HttpParserType::HttpRequest, line.as_bytes());
+    test_first_line(HttpParserType::Request, line.as_bytes());
 }
 
 #[test]
 fn test_status_line() {
     let line : &str = "HTTP/1.0 200 OK\r\n";
-    test_first_line(HttpParserType::HttpResponse, line.as_bytes());
+    test_first_line(HttpParserType::Response, line.as_bytes());
 }
 
 fn test_first_line(tp : HttpParserType, data : &[u8]) {
