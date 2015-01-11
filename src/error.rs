@@ -1,6 +1,6 @@
 use std::string::ToString;
 
-#[deriving(PartialEq, Eq, Copy)]
+#[derive(PartialEq, Eq, Copy)]
 pub enum HttpErrno {
     // No error
     Ok,

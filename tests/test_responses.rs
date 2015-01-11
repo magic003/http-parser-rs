@@ -9,7 +9,7 @@ mod helper;
 #[test]
 fn test_responses() {
     // RESPONSES
-    let responses: [helper::Message, ..22] = [
+    let responses: [helper::Message; 22] = [
         helper::Message {
             name: String::from_str("google 301"),
             tp: HttpParserType::HttpResponse,

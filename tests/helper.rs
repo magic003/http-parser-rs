@@ -5,7 +5,7 @@ use std::str;
 
 use self::http_parser::{HttpParser, HttpParserCallback, HttpParserType, HttpMethod, HttpErrno};
 
-#[deriving(PartialEq, Eq )]
+#[derive(PartialEq, Eq )]
 pub enum LastHeaderType {
     None,
     Field,
@@ -31,7 +31,7 @@ pub struct Message {
     pub port: u16,
     pub num_headers: int, // might be able to delete this
     pub last_header_element: LastHeaderType,
-    pub headers: Vec<[String,..2]>,
+    pub headers: Vec<[String; 2]>,
     pub should_keep_alive: bool,
     
     pub upgrade: Option<String>,
@@ -853,9 +853,11 @@ fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: u64, msgs: &[
 
 fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
     print!("i={}  j={}\n", i, j);
-    print!("buf1 ({}) {}\n\n", buf1.len(), buf1);
-    print!("buf2 ({}) {}\n\n", buf2.len(), buf2);
-    print!("buf3 ({}) {}\n\n", buf3.len(), buf3);
+    unsafe {
+        print!("buf1 ({}) {}\n\n", buf1.len(), str::from_utf8_unchecked(buf1));
+        print!("buf2 ({}) {}\n\n", buf2.len(), str::from_utf8_unchecked(buf2));
+        print!("buf3 ({}) {}\n\n", buf3.len(), str::from_utf8_unchecked(buf3));
+    }
     panic!();
 }
 
