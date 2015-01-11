@@ -24,8 +24,8 @@ pub enum HttpParserType {
 pub struct HttpParser {
     pub http_version: HttpVersion,
     pub errno : Option<HttpErrno>,
-    pub status_code : u16,                          // response only
-    pub method : http_method::HttpMethod,            // request only
+    pub status_code : u16,          // response only
+    pub method : HttpMethod,        // request only
 
     pub upgrade : bool,
     
@@ -343,7 +343,7 @@ impl HttpParser {
             http_version: HttpVersion { major: 1, minor: 0 },
             errno : Option::None,
             status_code : 0,
-            method : http_method::HttpMethod::Get,
+            method : HttpMethod::Get,
             upgrade : false,
             strict: true,
         }
@@ -473,7 +473,7 @@ impl HttpParser {
                             }
 
                             self.tp = HttpParserType::Request;
-                            self.method = http_method::HttpMethod::Head;
+                            self.method = HttpMethod::Head;
                             self.index = 2;
                             self.state = state::State::ReqMethod;
                         }
@@ -640,22 +640,22 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.method = http_method::HttpMethod::Delete;
+                            self.method = HttpMethod::Delete;
                             self.index = 1;
                             match ch {
-                                b'C' => self.method = http_method::HttpMethod::Connect, // or Copy, Checkout
-                                b'D' => self.method = http_method::HttpMethod::Delete,
-                                b'G' => self.method = http_method::HttpMethod::Get,
-                                b'H' => self.method = http_method::HttpMethod::Head,
-                                b'L' => self.method = http_method::HttpMethod::Lock,
-                                b'M' => self.method = http_method::HttpMethod::MKCol, // or Move, MKActivity, Merge, MSearch, MKCalendar
-                                b'N' => self.method = http_method::HttpMethod::Notify,
-                                b'O' => self.method = http_method::HttpMethod::Options,
-                                b'P' => self.method = http_method::HttpMethod::Post, // or PropFind|PropPatch|Put|Patch|Purge
-                                b'R' => self.method = http_method::HttpMethod::Report,
-                                b'S' => self.method = http_method::HttpMethod::Subscribe, // or Search
-                                b'T' => self.method = http_method::HttpMethod::Trace,
-                                b'U' => self.method = http_method::HttpMethod::Unlock, // or Unsubscribe
+                                b'C' => self.method = HttpMethod::Connect, // or Copy, Checkout
+                                b'D' => self.method = HttpMethod::Delete,
+                                b'G' => self.method = HttpMethod::Get,
+                                b'H' => self.method = HttpMethod::Head,
+                                b'L' => self.method = HttpMethod::Lock,
+                                b'M' => self.method = HttpMethod::MKCol, // or Move, MKActivity, Merge, MSearch, MKCalendar
+                                b'N' => self.method = HttpMethod::Notify,
+                                b'O' => self.method = HttpMethod::Options,
+                                b'P' => self.method = HttpMethod::Post, // or PropFind|PropPatch|Put|Patch|Purge
+                                b'R' => self.method = HttpMethod::Report,
+                                b'S' => self.method = HttpMethod::Subscribe, // or Search
+                                b'T' => self.method = HttpMethod::Trace,
+                                b'U' => self.method = HttpMethod::Unlock, // or Unsubscribe
                                 _ => {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -683,59 +683,59 @@ impl HttpParser {
                             self.state = state::State::ReqSpacesBeforeUrl;
                         } else if self.index < matcher.len() && ch == (matcher.char_at(self.index) as u8) {
                             ;
-                        } else if self.method == http_method::HttpMethod::Connect {
+                        } else if self.method == HttpMethod::Connect {
                             if self.index == 1 && ch == b'H' {
-                                self.method = http_method::HttpMethod::Checkout;
+                                self.method = HttpMethod::Checkout;
                             } else if self.index == 2 && ch == b'P' {
-                                self.method = http_method::HttpMethod::Copy;
+                                self.method = HttpMethod::Copy;
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == http_method::HttpMethod::MKCol {
+                        } else if self.method == HttpMethod::MKCol {
                             if self.index == 1 && ch == b'O' {
-                                self.method = http_method::HttpMethod::Move;
+                                self.method = HttpMethod::Move;
                             } else if self.index == 1 && ch == b'E' {
-                                self.method = http_method::HttpMethod::Merge;
+                                self.method = HttpMethod::Merge;
                             } else if self.index == 1 && ch == b'-' {
-                                self.method = http_method::HttpMethod::MSearch;
+                                self.method = HttpMethod::MSearch;
                             } else if self.index == 2 && ch == b'A' {
-                                self.method = http_method::HttpMethod::MKActivity;
+                                self.method = HttpMethod::MKActivity;
                             } else if self.index == 3 && ch == b'A' {
-                                self.method = http_method::HttpMethod::MKCalendar;
+                                self.method = HttpMethod::MKCalendar;
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == http_method::HttpMethod::Subscribe {
+                        } else if self.method == HttpMethod::Subscribe {
                             if self.index == 1 && ch == b'E' {
-                                self.method = http_method::HttpMethod::Search;
+                                self.method = HttpMethod::Search;
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 1 && self.method == http_method::HttpMethod::Post {
+                        } else if self.index == 1 && self.method == HttpMethod::Post {
                            if ch == b'R' {
-                               self.method = http_method::HttpMethod::PropFind; // or PropPatch
+                               self.method = HttpMethod::PropFind; // or PropPatch
                            } else if ch == b'U' {
-                               self.method = http_method::HttpMethod::Put; // or Purge
+                               self.method = HttpMethod::Put; // or Purge
                            } else if ch == b'A' {
-                               self.method = http_method::HttpMethod::Patch;
+                               self.method = HttpMethod::Patch;
                            } else {
                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                return index;
                            }
                         } else if self.index == 2 {
-                            if self.method == http_method::HttpMethod::Put {
+                            if self.method == HttpMethod::Put {
                                 if ch == b'R' {
-                                    self.method = http_method::HttpMethod::Purge;
+                                    self.method = HttpMethod::Purge;
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 }
-                            } else if self.method == http_method::HttpMethod::Unlock {
+                            } else if self.method == HttpMethod::Unlock {
                                 if ch == b'S' {
-                                    self.method = http_method::HttpMethod::Unsubscribe;
+                                    self.method = HttpMethod::Unsubscribe;
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -744,8 +744,8 @@ impl HttpParser {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 4 && self.method == http_method::HttpMethod::PropFind && ch == b'P' {
-                            self.method = http_method::HttpMethod::PropPatch;
+                        } else if self.index == 4 && self.method == HttpMethod::PropFind && ch == b'P' {
+                            self.method = HttpMethod::PropPatch;
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidMethod);
                             return index;
@@ -756,7 +756,7 @@ impl HttpParser {
                     state::State::ReqSpacesBeforeUrl => {
                         if ch != b' ' {
                             mark!(url_mark, index);
-                            if self.method == http_method::HttpMethod::Connect {
+                            if self.method == HttpMethod::Connect {
                                 self.state = state::State::ReqServerStart;
                             }
 
@@ -1256,7 +1256,7 @@ impl HttpParser {
                             // Set this here so that on_headers_complete()
                             // callbacks can see it
                             self.upgrade = (self.flags & flags::flags::UPGRADE != 0) ||
-                                self.method == http_method::HttpMethod::Connect;
+                                self.method == HttpMethod::Connect;
 
                             // Here we call the headers_complete callback. This is somewhat
                             // different than other callbacks because if the user returns 1, we
