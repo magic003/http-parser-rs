@@ -303,14 +303,14 @@ impl HttpParser {
         }
     }
 
-    pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> u64 {
-        let mut index : u64 = 0;
-        let len : u64 = data.len() as u64;
-        let mut header_field_mark : Option<u64> = None;
-        let mut header_value_mark : Option<u64> = None;
-        let mut url_mark : Option<u64> = None;
-        let mut body_mark : Option<u64> = None;
-        let mut status_mark : Option<u64> = None;
+    pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> usize {
+        let mut index : usize = 0;
+        let len : usize = data.len();
+        let mut header_field_mark : Option<usize> = None;
+        let mut header_value_mark : Option<usize> = None;
+        let mut url_mark : Option<usize> = None;
+        let mut body_mark : Option<usize> = None;
+        let mut status_mark : Option<usize> = None;
 
         if self.errno.is_some() {
             return 0;
@@ -1297,8 +1297,8 @@ impl HttpParser {
                         }
                     },
                     State::BodyIdentity => {
-                        let to_read : u64 = cmp::min(self.content_length,
-                                                    (len - index) as u64);
+                        let to_read : usize = cmp::min(self.content_length,
+                                                    (len - index) as u64) as usize;
                         assert!(self.content_length != 0 &&
                                 self.content_length != ULLONG_MAX);
 
@@ -1307,7 +1307,7 @@ impl HttpParser {
                         // Further, if content_length ends up at 0, we want to see the last
                         // byte again for our message complete callback.
                         mark!(body_mark, index);
-                        self.content_length -= to_read;
+                        self.content_length -= (to_read as u64);
 
                         index += to_read - 1;
 
@@ -1406,8 +1406,8 @@ impl HttpParser {
                         }
                     },
                     State::ChunkData => {
-                        let to_read : u64 = cmp::min(self.content_length,
-                                                         len - index);
+                        let to_read : usize = cmp::min(self.content_length,
+                                                         (len - index) as u64) as usize;
                         assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
                         assert!(self.content_length != 0 &&
                                 self.content_length != ULLONG_MAX);
@@ -1415,7 +1415,7 @@ impl HttpParser {
                         // See the explanation in s_body_identity for why the content
                         // length and data pointers are managed this way.
                         mark!(body_mark, index);
-                        self.content_length -= to_read;
+                        self.content_length -= (to_read as u64);
                         index += to_read - 1;
 
                         if self.content_length == 0 {

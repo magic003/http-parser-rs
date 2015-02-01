@@ -740,14 +740,14 @@ fn test_message_count_body(msg: &helper::Message) {
     let mut cb = helper::CallbackCountBody{..Default::default()};
     cb.messages.push(helper::Message{..Default::default()});
 
-    let mut read : u64 = 0;
-    let len : u64 = msg.raw.len() as u64;
-    let chunk : u64 = 4024;
+    let mut read : usize = 0;
+    let len : usize = msg.raw.len();
+    let chunk : usize = 4024;
 
-    let mut i : u64 = 0;
+    let mut i : usize = 0;
     while i < len {
-        let toread : u64 = std::cmp::min(len-i, chunk);
-        read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i as uint, (i + toread) as uint));
+        let toread : usize = std::cmp::min(len-i, chunk);
+        read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i, i + toread));
         if read != toread {
             helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
             panic!();

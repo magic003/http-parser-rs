@@ -33,8 +33,8 @@ fn test_header(tp : HttpParserType) {
 
     before(&mut hp, &mut cb, tp);
 
-    let parsed: u64 = hp.execute(&mut cb, HEADER_LINE.as_bytes());
-    assert_eq!(parsed, HEADER_LINE.len() as u64);
+    let parsed: usize = hp.execute(&mut cb, HEADER_LINE.as_bytes());
+    assert_eq!(parsed, HEADER_LINE.len());
 }
 
 fn test_header_overflow(tp: HttpParserType) {
@@ -43,7 +43,7 @@ fn test_header_overflow(tp: HttpParserType) {
 
     before(&mut hp, &mut cb, tp);
 
-    let len : u64 = HEADER_LINE.len() as u64;
+    let len : usize = HEADER_LINE.len();
     let mut done = false;
 
     while !done {
@@ -62,6 +62,6 @@ fn before<CB: HttpParserCallback>(hp : &mut HttpParser, cb : &mut CB, tp : HttpP
     } else {
         "HTTP/1.0 200 OK\r\n"
     };
-    let parsed : u64 = hp.execute(cb, line.as_bytes());
-    assert_eq!(parsed, line.len() as u64);
+    let parsed : usize = hp.execute(cb, line.as_bytes());
+    assert_eq!(parsed, line.len());
 }

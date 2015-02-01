@@ -567,7 +567,7 @@ impl HttpParserCallback for CallbackCountBody {
         Ok(CallbackDecision::Nothing)
     }
 }
-pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: u64) {
+pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: usize) {
     println!("\n*** {} ***\n", errno);
 
     let len = raw.len();
@@ -660,19 +660,19 @@ pub fn test_message(message: &Message) {
         let mut cb = CallbackRegular{..Default::default()};
         cb.messages.push(Message{..Default::default()});
 
-        let mut read: u64 = 0;
+        let mut read: usize = 0;
 
         if i > 0 {
             read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
 
             if message.upgrade.is_some() && hp.upgrade {
-                cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(read as uint).to_string());
+                cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(read).to_string());
                 assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
                 assert_eq_message(&cb.messages[0], message);
                 continue;
             }
 
-            if read != (i as u64) {
+            if read != i {
                 print_error(hp.errno.unwrap(), raw.as_bytes(), read);
                 panic!();
             }
@@ -681,14 +681,14 @@ pub fn test_message(message: &Message) {
         read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
 
         if message.upgrade.is_some() && hp.upgrade {
-            cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(i+(read as uint)).to_string());
+            cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(i+read).to_string());
             assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
             assert_eq_message(&cb.messages[0], message);
             continue;
         }
 
-        if read != ((raw_len - i) as u64) {
-            print_error(hp.errno.unwrap(), raw.as_bytes(), (i + read as uint) as u64);
+        if read != (raw_len - i) {
+            print_error(hp.errno.unwrap(), raw.as_bytes(), i + read);
             panic!();
         }
 
@@ -714,7 +714,7 @@ pub fn test_message_pause(msg: &Message) {
     let mut cb = CallbackPause{..Default::default()};
     cb.messages.push(Message{..Default::default()});
 
-    let mut read: u64 = 0;
+    let mut read: usize = 0;
 
     while raw.len() > 0 {
         cb.paused = false;
@@ -722,13 +722,13 @@ pub fn test_message_pause(msg: &Message) {
 
         if cb.messages[0].message_complete_cb_called &&
             msg.upgrade.is_some() && hp.upgrade {
-            cb.messages[0].upgrade = Some(raw.slice_from(read as uint).to_string());
+            cb.messages[0].upgrade = Some(raw.slice_from(read).to_string());
             assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
             assert_eq_message(&cb.messages[0], msg);
             return;
         }
 
-        if read < (raw.len() as u64) {
+        if read < raw.len() {
             if hp.errno == Option::Some(HttpErrno::Strict) {
                 return;
             }
@@ -736,7 +736,7 @@ pub fn test_message_pause(msg: &Message) {
             assert!(hp.errno == Option::Some(HttpErrno::Paused));
         }
 
-        raw = raw.slice_from(read as uint);
+        raw = raw.slice_from(read);
         hp.pause(false);
     }
 
@@ -780,7 +780,7 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     let mut cb = CallbackRegular{..Default::default()};
     cb.messages.push(Message{..Default::default()});
 
-    let mut read: u64 = 0;
+    let mut read: usize = 0;
 
     read = hp.execute(&mut cb, total.as_bytes());
 
@@ -799,7 +799,7 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
         return;
     }
 
-    if read != (total.len() as u64) {
+    if read != total.len() {
         print_error(hp.errno.unwrap(), total.as_bytes(), read);
         panic!();
     }
@@ -823,21 +823,21 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     }
 }
 
-fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: u64, msgs: &[&Message]) {
-    let mut off : u64 = 0;
+fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: usize, msgs: &[&Message]) {
+    let mut off : usize = 0;
 
     for m in msgs.iter() {
-        off += (m.raw.len() as u64);
+        off += m.raw.len();
 
         if m.upgrade.is_some() {
-            let upgrade_len = m.upgrade.as_ref().unwrap().len() as u64;
+            let upgrade_len = m.upgrade.as_ref().unwrap().len();
 
             off -= upgrade_len;
 
-            assert_eq!(body.slice_from(off as uint), body.slice_from(read as uint));
+            assert_eq!(body.slice_from(off), body.slice_from(read));
 
             cb.messages[cb.num_messages-1].upgrade = 
-                Some(body.slice(read as uint, (read+upgrade_len) as uint).to_string());
+                Some(body.slice(read, read+upgrade_len).to_string());
             return;
         }
     }
@@ -874,7 +874,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                 let mut cb = CallbackRegular{..Default::default()};
                 cb.messages.push(Message{..Default::default()});
 
-                let mut read: u64 = 0;
+                let mut read: usize = 0;
                 let mut done = false;
                 
                 let buf1 = total.as_bytes().slice(0, i);
@@ -886,7 +886,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                 if hp.upgrade {
                     done = true;
                 } else {
-                    if read != (buf1.len() as u64) {
+                    if read != buf1.len() {
                         print_error(hp.errno.unwrap(), buf1, read);
                         print_test_scan_error(i, j, buf1, buf2, buf3);
                     }
@@ -898,7 +898,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                     if hp.upgrade {
                         done = true;
                     } else {
-                        if read != ((buf1.len() + buf2.len()) as u64) {
+                        if read != (buf1.len() + buf2.len()) {
                             print_error(hp.errno.unwrap(), buf2, read);
                             print_test_scan_error(i, j, buf1, buf2, buf3);
                         }
@@ -911,7 +911,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                     if hp.upgrade {
                         done = true;
                     } else {
-                        if read != ((buf1.len() + buf2.len() + buf3.len()) as u64) {
+                        if read != (buf1.len() + buf2.len() + buf3.len()) {
                             print_error(hp.errno.unwrap(), buf3, read);
                             print_test_scan_error(i, j, buf1, buf2, buf3);
                         }

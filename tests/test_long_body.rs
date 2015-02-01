@@ -30,13 +30,13 @@ fn test_no_overflow_long_body(tp: HttpParserType, length: u64) {
                           line, length);
 
     let mut parsed = hp.execute(&mut cb, headers.as_bytes());
-    assert_eq!(parsed, headers.len() as u64); 
+    assert_eq!(parsed, headers.len()); 
 
     for i in range(0, length) {
         parsed = hp.execute(&mut cb, [b'a'].as_slice());
-        assert_eq!(parsed, 1 as u64);
+        assert_eq!(parsed, 1);
     }
 
     parsed = hp.execute(&mut cb, headers.as_bytes());
-    assert_eq!(parsed, headers.len() as u64);
+    assert_eq!(parsed, headers.len());
 }
