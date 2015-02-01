@@ -134,7 +134,7 @@ const CHUNKED : &'static str = "chunked";
 const KEEP_ALIVE : &'static str = "keep-alive";
 const CLOSE : &'static str = "close";
 
-const TOKEN : [Option<u8>; 256] = [
+static TOKEN : &'static [Option<u8>; 256] = &[
     //   0 nul      1 soh       2 stx       3 etx      4 eot        5 enq       6 ack       7 bel   
          None,       None,     None,        None,       None,       None,        None,      None,       
     //   8 bs        9 ht      10 nl        11 vt      12 np        13 cr       14 so       15 si    
@@ -185,7 +185,7 @@ const TOKEN : [Option<u8>; 256] = [
         None,       None,     None,        None,       None,       None,        None,      None,       
         None,       None,     None,        None,       None,       None,        None,      None];
 
-const NORMAL_URL_CHAR : [u8; 32] = [
+static NORMAL_URL_CHAR : &'static [u8; 32] = &[
     //   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel   
             0    |   0    |   0    |   0    |   0    |   0    |   0    |   0,       
     //   8 bs     9 ht    10 nl    11 vt    12 np    13 cr    14 so    15 si
@@ -220,7 +220,7 @@ const NORMAL_URL_CHAR : [u8; 32] = [
             1    |   2    |   4    |   8    |   16   |   32   |   64   |   0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-const UNHEX : [i8; 256] = [
+static UNHEX : &'static [i8; 256] = &[
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
