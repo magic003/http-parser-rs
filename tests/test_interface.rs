@@ -15,5 +15,5 @@ fn test_interface() {
     }
 
     let mut cb = Callback;
-    hp.execute(&mut cb, [b'a', b'b', b'c'].as_slice());
+    hp.execute(&mut cb, &[b'a', b'b', b'c']);
 }

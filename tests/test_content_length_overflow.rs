@@ -1,5 +1,3 @@
-#![feature(macro_rules)]
-
 extern crate http_parser;
 
 use http_parser::{HttpParser, HttpParserType, HttpParserCallback, HttpErrno};

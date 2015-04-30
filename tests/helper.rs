@@ -25,11 +25,11 @@ pub struct Message {
     pub fragment: String,
     pub query_string: String,
     pub body: String,
-    pub body_size: uint, // maybe not necessary
+    pub body_size: usize, // maybe not necessary
     pub host: String,
     pub userinfo: String,
     pub port: u16,
-    pub num_headers: int, // might be able to delete this
+    pub num_headers: i32, // might be able to delete this
     pub last_header_element: LastHeaderType,
     pub headers: Vec<[String; 2]>,
     pub should_keep_alive: bool,
@@ -87,7 +87,7 @@ pub struct CallbackEmpty;
 impl HttpParserCallback for CallbackEmpty {}
 
 pub struct CallbackRegular {
-    pub num_messages: uint, // maybe not necessary
+    pub num_messages: usize, // maybe not necessary
     pub messages: Vec<Message>,
     pub currently_parsing_eof: bool,
 }
@@ -109,12 +109,16 @@ impl HttpParserCallback for CallbackRegular {
     }
 
     fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
-        self.messages[self.num_messages].request_url.push_all(data);
+        for b in data {
+            self.messages[self.num_messages].request_url.push(*b);
+        }
         Ok(CallbackDecision::Nothing)
     }
 
     fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
-        self.messages[self.num_messages].response_status.push_all(data);
+        for b in data {
+            self.messages[self.num_messages].response_status.push(*b);
+        }
         Ok(CallbackDecision::Nothing)
     }
 
@@ -264,7 +268,7 @@ impl HttpParserCallback for CallbackDontCall {
 }
 
 pub struct CallbackPause {
-    pub num_messages: uint, // maybe not necessary
+    pub num_messages: usize, // maybe not necessary
     pub messages: Vec<Message>,
     pub currently_parsing_eof: bool,
 
@@ -303,7 +307,9 @@ impl HttpParserCallback for CallbackPause {
         } else {
             parser.pause(true);
             self.paused = true;
-            self.messages[self.num_messages].request_url.push_all(data);
+            for b in data {
+                self.messages[self.num_messages].request_url.push(*b);
+            }
             Ok(CallbackDecision::Nothing)
         }
     }
@@ -314,7 +320,9 @@ impl HttpParserCallback for CallbackPause {
         } else {
             parser.pause(true);
             self.paused = true;
-            self.messages[self.num_messages].response_status.push_all(data);
+            for b in data {
+                self.messages[self.num_messages].response_status.push(*b);
+            }
             Ok(CallbackDecision::Nothing)
         }
     }
@@ -446,7 +454,7 @@ impl HttpParserCallback for CallbackPause {
 }
 
 pub struct CallbackCountBody {
-    pub num_messages: uint, // maybe not necessary
+    pub num_messages: usize, // maybe not necessary
     pub messages: Vec<Message>,
     pub currently_parsing_eof: bool,
 }
@@ -469,12 +477,16 @@ impl HttpParserCallback for CallbackCountBody {
     }
 
     fn on_url(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
-        self.messages[self.num_messages].request_url.push_all(data);
+        for b in data {
+            self.messages[self.num_messages].request_url.push(*b);
+        }
         Ok(CallbackDecision::Nothing)
     }
 
     fn on_status(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
-        self.messages[self.num_messages].response_status.push_all(data);
+        for b in data {
+            self.messages[self.num_messages].response_status.push(*b);
+        }
         Ok(CallbackDecision::Nothing)
     }
 
@@ -575,8 +587,8 @@ pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: usize) {
     let mut char_len: u64 = 0;
     let mut error_location_line = 0;
     let mut eof = true;
-    for i in range(0, len) {
-        if i == (error_location as uint) { this_line = true; }
+    for i in (0..len ) {
+        if i == (error_location as usize) { this_line = true; }
         match raw[i] {
             b'\r' => {
                 char_len = 2;
@@ -605,7 +617,7 @@ pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: usize) {
         println!("[eof]");
     }
 
-    for i in range(0, error_location_line as u64) {
+    for _ in (0..error_location_line) {
         print!(" ");
     }
     println!("^\n\nerror location: {}", error_location);
@@ -642,9 +654,9 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
 
     assert_eq!(actual.num_headers, expected.num_headers);
 
-    for i in range(0, actual.num_headers) {
-        assert_eq!(actual.headers[i as uint][0], expected.headers[i as uint][0]);
-        assert_eq!(actual.headers[i as uint][1], expected.headers[i as uint][1]);
+    for i in (0..actual.num_headers) {
+        assert_eq!(actual.headers[i as usize][0], expected.headers[i as usize][0]);
+        assert_eq!(actual.headers[i as usize][1], expected.headers[i as usize][1]);
     }
 
     assert_eq!(actual.upgrade, expected.upgrade);
@@ -653,7 +665,7 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
 pub fn test_message(message: &Message) {
     let raw = &message.raw;
     let raw_len = raw.len();
-    for i in range(0, raw_len) {
+    for i in (0..raw_len) {
         let mut hp = HttpParser::new(message.tp);
         hp.strict = message.strict;
 
@@ -663,10 +675,10 @@ pub fn test_message(message: &Message) {
         let mut read: usize = 0;
 
         if i > 0 {
-            read = hp.execute(&mut cb, raw.as_bytes().slice(0, i));
+            read = hp.execute(&mut cb, &raw.as_bytes()[0 .. i]);
 
             if message.upgrade.is_some() && hp.upgrade {
-                cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(read).to_string());
+                cb.messages[cb.num_messages - 1].upgrade = Some(raw[read..].to_string());
                 assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
                 assert_eq_message(&cb.messages[0], message);
                 continue;
@@ -678,10 +690,10 @@ pub fn test_message(message: &Message) {
             }
         }
 
-        read = hp.execute(&mut cb, raw.as_bytes().slice_from(i));
+        read = hp.execute(&mut cb, &raw.as_bytes()[i..]);
 
         if message.upgrade.is_some() && hp.upgrade {
-            cb.messages[cb.num_messages - 1].upgrade = Some(raw.slice_from(i+read).to_string());
+            cb.messages[cb.num_messages - 1].upgrade = Some(raw[i+read..].to_string());
             assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", message.name);
             assert_eq_message(&cb.messages[0], message);
             continue;
@@ -706,7 +718,7 @@ pub fn test_message(message: &Message) {
 }
 
 pub fn test_message_pause(msg: &Message) {
-    let mut raw = msg.raw.as_slice();
+    let mut raw : &str = &msg.raw;
 
     let mut hp = HttpParser::new(msg.tp);
     hp.strict = msg.strict;
@@ -722,7 +734,7 @@ pub fn test_message_pause(msg: &Message) {
 
         if cb.messages[0].message_complete_cb_called &&
             msg.upgrade.is_some() && hp.upgrade {
-            cb.messages[0].upgrade = Some(raw.slice_from(read).to_string());
+            cb.messages[0].upgrade = Some(raw[read..].to_string());
             assert!(cb.num_messages == 1, "\n*** num_messages != 1 after testing '{}' ***\n\n", msg.name);
             assert_eq_message(&cb.messages[0], msg);
             return;
@@ -736,7 +748,7 @@ pub fn test_message_pause(msg: &Message) {
             assert!(hp.errno == Option::Some(HttpErrno::Paused));
         }
 
-        raw = raw.slice_from(read);
+        raw = &raw[read..];
         hp.pause(false);
     }
 
@@ -749,8 +761,8 @@ pub fn test_message_pause(msg: &Message) {
     assert_eq_message(&cb.messages[0], msg);
 }
 
-fn count_parsed_messages(messages: &[&Message]) -> uint {
-    let mut i: uint = 0;
+fn count_parsed_messages(messages: &[&Message]) -> usize {
+    let mut i: usize = 0;
     let len = messages.len();
 
     while i < len {
@@ -767,12 +779,12 @@ fn count_parsed_messages(messages: &[&Message]) -> uint {
 
 pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     let messages = [r1, r2, r3];
-    let message_count = count_parsed_messages(messages.as_slice());
+    let message_count = count_parsed_messages(&messages);
 
     let mut total = String::new();
-    total.push_str(r1.raw.as_slice());
-    total.push_str(r2.raw.as_slice());
-    total.push_str(r3.raw.as_slice());
+    total.push_str(&r1.raw);
+    total.push_str(&r2.raw);
+    total.push_str(&r3.raw);
 
     let mut hp = HttpParser::new(r1.tp);
     hp.strict = r1.strict && r2.strict && r3.strict;
@@ -785,7 +797,7 @@ pub fn test_multiple3(r1: &Message, r2: &Message, r3: &Message) {
     read = hp.execute(&mut cb, total.as_bytes());
 
     if hp.upgrade {
-        upgrade_message_fix(&mut cb, total.as_slice(), read, messages.as_slice());
+        upgrade_message_fix(&mut cb, &total, read, &messages);
 
         assert!(message_count == cb.num_messages,
                 "\n\n*** Parser didn't see 3 messages only {} *** \n", cb.num_messages);
@@ -834,10 +846,10 @@ fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: usize, msgs: 
 
             off -= upgrade_len;
 
-            assert_eq!(body.slice_from(off), body.slice_from(read));
+            assert_eq!(&body[off..], &body[read..]);
 
             cb.messages[cb.num_messages-1].upgrade = 
-                Some(body.slice(read, read+upgrade_len).to_string());
+                Some(body[read .. read+upgrade_len].to_string());
             return;
         }
     }
@@ -845,7 +857,7 @@ fn upgrade_message_fix(cb: &mut CallbackRegular, body: &str, read: usize, msgs: 
     panic!("\n\n*** Error: expected a message with upgrade ***\n");
 }
 
-fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
+fn print_test_scan_error(i: usize, j: usize, buf1: &[u8], buf2: &[u8], buf3: &[u8]) {
     print!("i={}  j={}\n", i, j);
     unsafe {
         print!("buf1 ({}) {}\n\n", buf1.len(), str::from_utf8_unchecked(buf1));
@@ -857,17 +869,17 @@ fn print_test_scan_error(i: uint, j: uint, buf1: &[u8], buf2: &[u8], buf3: &[u8]
 
 pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
     let mut total = String::new();
-    total.push_str(r1.raw.as_slice());
-    total.push_str(r2.raw.as_slice());
-    total.push_str(r3.raw.as_slice());
+    total.push_str(&r1.raw);
+    total.push_str(&r2.raw);
+    total.push_str(&r3.raw);
 
     let total_len = total.len();
 
-    let message_count = count_parsed_messages([r1, r2, r3].as_slice());
+    let message_count = count_parsed_messages(&[r1, r2, r3]);
 
     for &is_type_both in [false, true].iter() {
-        for j in range(2, total_len) {
-            for i in range(1, j) {
+        for j in (2..total_len) {
+            for i in (1..j) {
                 let mut hp = HttpParser::new(if is_type_both { HttpParserType::Both } else { r1.tp });
                 hp.strict = r1.strict && r2.strict && r3.strict;
 
@@ -877,9 +889,9 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                 let mut read: usize = 0;
                 let mut done = false;
                 
-                let buf1 = total.as_bytes().slice(0, i);
-                let buf2 = total.as_bytes().slice(i, j);
-                let buf3 = total.as_bytes().slice(j, total_len);
+                let buf1 = &total.as_bytes()[0 .. i];
+                let buf2 = &total.as_bytes()[i .. j];
+                let buf3 = &total.as_bytes()[j .. total_len];
 
                 read = hp.execute(&mut cb, buf1);
 
@@ -926,7 +938,7 @@ pub fn test_scan(r1: &Message, r2: &Message, r3: &Message) {
                 // test
 
                 if hp.upgrade {
-                    upgrade_message_fix(&mut cb, total.as_slice(), read, [r1, r2, r3].as_slice());
+                    upgrade_message_fix(&mut cb, &total, read, &[r1, r2, r3]);
                 }
 
                 if message_count != cb.num_messages {

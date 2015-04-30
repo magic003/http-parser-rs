@@ -1,5 +1,4 @@
 #![crate_name = "http_parser"]
-#![experimental]
 
 pub use self::parser::{HttpParser, HttpParserType};
 pub use self::http_version::HttpVersion;

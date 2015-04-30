@@ -1,10 +1,10 @@
 pub enum Flags {
-    CHUNKED                 = 1is << 0,
-    CONNECTION_KEEP_ALIVE   = 1is << 1,
-    CONNECTION_CLOSE        = 1is << 2,
-    TRAILING                = 1is << 3,
-    UPGRADE                 = 1is << 4,
-    SKIPBODY                = 1is << 5,
+    CHUNKED                 = 1isize << 0,
+    CONNECTION_KEEP_ALIVE   = 1isize << 1,
+    CONNECTION_CLOSE        = 1isize << 2,
+    TRAILING                = 1isize << 3,
+    UPGRADE                 = 1isize << 4,
+    SKIPBODY                = 1isize << 5,
 }
 
 impl Flags {

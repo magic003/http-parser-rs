@@ -48,7 +48,7 @@ fn test_requests() {
         buf.push_str(method);
         buf.push_str(" / HTTP1.1\r\n\r\n");
 
-        test_simple(buf.as_slice(), Option::None);
+        test_simple(&buf, Option::None);
     }
 
     let bad_methods = [
@@ -70,7 +70,7 @@ fn test_requests() {
         buf.push_str(method);
         buf.push_str(" / HTTP1.1\r\n\r\n");
 
-        test_simple(buf.as_slice(), Option::Some(HttpErrno::InvalidMethod));
+        test_simple(&buf, Option::Some(HttpErrno::InvalidMethod));
     }
 
     // illegal header field name line folding
@@ -119,40 +119,40 @@ fn test_requests() {
     // REQUESTS
     let requests = [
         helper::Message {
-            name: String::from_str("curl get"),
+            name: "curl get".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /test HTTP/1.1\r\n\
+            raw: "GET /test HTTP/1.1\r\n\
                 User-Agent: curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1\r\n\
                 Host: 0.0.0.0=5000\r\n\
                 Accept: */*\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/test"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/test".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/test".as_bytes());
+                for b in "/test".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("User-Agent"), String::from_str("curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1") ],
-                [ String::from_str("Host"), String::from_str("0.0.0.0=5000") ],
-                [ String::from_str("Accept"), String::from_str("*/*") ],
+                [ "User-Agent".to_string(), "curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1".to_string() ],
+                [ "Host".to_string(), "0.0.0.0=5000".to_string() ],
+                [ "Accept".to_string(), "*/*".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("firefox get"),
+            name: "firefox get".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /favicon.ico HTTP/1.1\r\n\
+            raw: "GET /favicon.ico HTTP/1.1\r\n\
                 Host: 0.0.0.0=5000\r\n\
                 User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008061015 Firefox/3.0\r\n\
                 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n\
@@ -161,220 +161,228 @@ fn test_requests() {
                 Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n\
                 Keep-Alive: 300\r\n\
                 Connection: keep-alive\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/favicon.ico"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/favicon.ico".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/favicon.ico".as_bytes());
+                for b in "/favicon.ico".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 8,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("0.0.0.0=5000") ],
-                [ String::from_str("User-Agent"), String::from_str("Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008061015 Firefox/3.0") ],
-                [ String::from_str("Accept"), String::from_str("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8") ],
-                [ String::from_str("Accept-Language"), String::from_str("en-us,en;q=0.5") ],
-                [ String::from_str("Accept-Encoding"), String::from_str("gzip,deflate") ],
-                [ String::from_str("Accept-Charset"), String::from_str("ISO-8859-1,utf-8;q=0.7,*;q=0.7") ],
-                [ String::from_str("Keep-Alive"), String::from_str("300") ],
-                [ String::from_str("Connection"), String::from_str("keep-alive") ],
+                [ "Host".to_string(), "0.0.0.0=5000".to_string() ],
+                [ "User-Agent".to_string(), "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008061015 Firefox/3.0".to_string() ],
+                [ "Accept".to_string(), "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string() ],
+                [ "Accept-Language".to_string(), "en-us,en;q=0.5".to_string() ],
+                [ "Accept-Encoding".to_string(), "gzip,deflate".to_string() ],
+                [ "Accept-Charset".to_string(), "ISO-8859-1,utf-8;q=0.7,*;q=0.7".to_string() ],
+                [ "Keep-Alive".to_string(), "300".to_string() ],
+                [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("dumbfuck"),
+            name: "dumbfuck".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /dumbfuck HTTP/1.1\r\n\
+            raw: "GET /dumbfuck HTTP/1.1\r\n\
                 aaaaaaaaaaaaa: ++++++++++\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/dumbfuck"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/dumbfuck".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/dumbfuck".as_bytes());
+                for b in "/dumbfuck".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("aaaaaaaaaaaaa"), String::from_str("++++++++++") ],
+                [ "aaaaaaaaaaaaa".to_string(), "++++++++++".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("fragment in url"),
+            name: "fragment in url".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("page=1"),
-            fragment: String::from_str("posts-17408"),
-            request_path: String::from_str("/forums/1/topics/2375"),
+            query_string: "page=1".to_string(),
+            fragment: "posts-17408".to_string(),
+            request_path: "/forums/1/topics/2375".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/forums/1/topics/2375?page=1#posts-17408".as_bytes());
+                for b in "/forums/1/topics/2375?page=1#posts-17408".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("get no headers no body"),
+            name: "get no headers no body".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /get_no_headers_no_body/world HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET /get_no_headers_no_body/world HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/get_no_headers_no_body/world"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/get_no_headers_no_body/world".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/get_no_headers_no_body/world".as_bytes());
+                for b in "/get_no_headers_no_body/world".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("get one header no body"),
+            name: "get one header no body".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /get_one_header_no_body/world HTTP/1.1\r\n\
+            raw: "GET /get_one_header_no_body/world HTTP/1.1\r\n\
                 Accept: */*\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/get_one_header_no_body/world"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/get_one_header_no_body/world".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/get_one_header_no_body/world".as_bytes());
+                for b in "/get_one_header_no_body/world".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Accept"), String::from_str("*/*") ],
+                [ "Accept".to_string(), "*/*".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("get funky content length body hello"),
+            name: "get funky content length body hello".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /get_funky_content_length_body_hello HTTP/1.0\r\n\
+            raw: "GET /get_funky_content_length_body_hello HTTP/1.0\r\n\
                 conTENT-Length: 5\r\n\
                 \r\n\
-                HELLO"),
+                HELLO".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/get_funky_content_length_body_hello"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/get_funky_content_length_body_hello".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/get_funky_content_length_body_hello".as_bytes());
+                for b in "/get_funky_content_length_body_hello".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("conTENT-Length"), String::from_str("5") ]
+                [ "conTENT-Length".to_string(), "5".to_string() ]
             ],
-            body: String::from_str("HELLO"),
+            body: "HELLO".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("post - chunked body: all your base are belong to us"),
+            name: "post - chunked body: all your base are belong to us".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "POST /post_chunked_all_your_base HTTP/1.1\r\n\
+            raw: "POST /post_chunked_all_your_base HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
                 1e\r\nall your base are belong to us\r\n\
                 0\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/post_chunked_all_your_base"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/post_chunked_all_your_base".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/post_chunked_all_your_base".as_bytes());
+                for b in "/post_chunked_all_your_base".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ]
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ]
             ],
-            body: String::from_str("all your base are belong to us"),
+            body: "all your base are belong to us".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("two chunks ; triple zero ending"),
+            name: "two chunks ; triple zero ending".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "POST /two_chunks_mult_zero_end HTTP/1.1\r\n\
+            raw: "POST /two_chunks_mult_zero_end HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
                 5\r\nhello\r\n\
                 6\r\n world\r\n\
                 000\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/two_chunks_mult_zero_end"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/two_chunks_mult_zero_end".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/two_chunks_mult_zero_end".as_bytes());
+                for b in "/two_chunks_mult_zero_end".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ]
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ]
             ],
-            body: String::from_str("hello world"),
+            body: "hello world".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("chunked with trailing headers. blech."),
+            name: "chunked with trailing headers. blech.".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "POST /chunked_w_trailing_headers HTTP/1.1\r\n\
+            raw: "POST /chunked_w_trailing_headers HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
                 5\r\nhello\r\n\
@@ -382,159 +390,165 @@ fn test_requests() {
                 0\r\n\
                 Vary: *\r\n\
                 Content-Type: text/plain\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/chunked_w_trailing_headers"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/chunked_w_trailing_headers".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/chunked_w_trailing_headers".as_bytes());
+                for b in "/chunked_w_trailing_headers".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
-                [ String::from_str("Vary"), String::from_str("*") ],
-                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
+                [ "Vary".to_string(), "*".to_string() ],
+                [ "Content-Type".to_string(), "text/plain".to_string() ],
             ],
-            body: String::from_str("hello world"),
+            body: "hello world".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("with bullshit after the length"),
+            name: "with bullshit after the length".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "POST /chunked_w_bullshit_after_length HTTP/1.1\r\n\
+            raw: "POST /chunked_w_bullshit_after_length HTTP/1.1\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
                 5; ihatew3;whatthefuck=aretheseparametersfor\r\nhello\r\n\
                 6; blahblah; blah\r\n world\r\n\
                 0\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/chunked_w_bullshit_after_length"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/chunked_w_bullshit_after_length".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/chunked_w_bullshit_after_length".as_bytes());
+                for b in "/chunked_w_bullshit_after_length".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
-            body: String::from_str("hello world"),
+            body: "hello world".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("with quotes"),
+            name: "with quotes".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET /with_\"stupid\"_quotes?foo=\"bar\" HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("foo=\"bar\""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/with_\"stupid\"_quotes"),
+            query_string: "foo=\"bar\"".to_string(),
+            fragment: "".to_string(),
+            request_path: "/with_\"stupid\"_quotes".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/with_\"stupid\"_quotes?foo=\"bar\"".as_bytes());
+                for b in "/with_\"stupid\"_quotes?foo=\"bar\"".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("apachebench get"),
+            name: "apachebench get".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /test HTTP/1.0\r\n\
+            raw: "GET /test HTTP/1.0\r\n\
                 Host: 0.0.0.0:5000\r\n\
                 User-Agent: ApacheBench/2.3\r\n\
                 Accept: */*\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/test"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/test".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/test".as_bytes());
+                for b in "/test".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("0.0.0.0:5000") ],
-                [ String::from_str("User-Agent"), String::from_str("ApacheBench/2.3") ],
-                [ String::from_str("Accept"), String::from_str("*/*") ],
+                [ "Host".to_string(), "0.0.0.0:5000".to_string() ],
+                [ "User-Agent".to_string(), "ApacheBench/2.3".to_string() ],
+                [ "Accept".to_string(), "*/*".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("query url with question mark"),
+            name: "query url with question mark".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /test.cgi?foo=bar?baz HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET /test.cgi?foo=bar?baz HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("foo=bar?baz"),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/test.cgi"),
+            query_string: "foo=bar?baz".to_string(),
+            fragment: "".to_string(),
+            request_path: "/test.cgi".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/test.cgi?foo=bar?baz".as_bytes());
+                for b in "/test.cgi?foo=bar?baz".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("newline prefix get"),
+            name: "newline prefix get".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "\r\nGET /test HTTP/1.1\r\n\
-                \r\n"),
+            raw: "\r\nGET /test HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/test"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/test".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/test".as_bytes());
+                for b in "/test".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("upgrade request"),
+            name: "upgrade request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /demo HTTP/1.1\r\n\
+            raw: "GET /demo HTTP/1.1\r\n\
                 Host: example.com\r\n\
                 Connection: Upgrade\r\n\
                 Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n\
@@ -543,540 +557,545 @@ fn test_requests() {
                 Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n\
                 Origin: http://example.com\r\n\
                 \r\n\
-                Hot diggity dogg"),
+                Hot diggity dogg".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/demo"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/demo".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/demo".as_bytes());
+                for b in "/demo".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 7,
-            upgrade: Some(String::from_str("Hot diggity dogg")),
+            upgrade: Some("Hot diggity dogg".to_string()),
             headers: vec![
-                [ String::from_str("Host"), String::from_str("example.com") ],
-                [ String::from_str("Connection"), String::from_str("Upgrade") ],
-                [ String::from_str("Sec-WebSocket-Key2"), String::from_str("12998 5 Y3 1  .P00") ],
-                [ String::from_str("Sec-WebSocket-Protocol"), String::from_str("sample") ],
-                [ String::from_str("Upgrade"), String::from_str("WebSocket") ],
-                [ String::from_str("Sec-WebSocket-Key1"), String::from_str("4 @1  46546xW%0l 1 5") ],
-                [ String::from_str("Origin"), String::from_str("http://example.com") ],
+                [ "Host".to_string(), "example.com".to_string() ],
+                [ "Connection".to_string(), "Upgrade".to_string() ],
+                [ "Sec-WebSocket-Key2".to_string(), "12998 5 Y3 1  .P00".to_string() ],
+                [ "Sec-WebSocket-Protocol".to_string(), "sample".to_string() ],
+                [ "Upgrade".to_string(), "WebSocket".to_string() ],
+                [ "Sec-WebSocket-Key1".to_string(), "4 @1  46546xW%0l 1 5".to_string() ],
+                [ "Origin".to_string(), "http://example.com".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("connect request"),
+            name: "connect request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "CONNECT 0-home0.netscape.com:443 HTTP/1.0\r\n\
+            raw: "CONNECT 0-home0.netscape.com:443 HTTP/1.0\r\n\
                 User-agent: Mozilla/1.1N\r\n\
                 Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n\
                 \r\n\
                 some data\r\n\
-                and yet even more data"),
+                and yet even more data".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             method: HttpMethod::Connect,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("0-home0.netscape.com:443".as_bytes());
+                for b in "0-home0.netscape.com:443".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 2,
-            upgrade: Some(String::from_str("some data\r\nand yet even more data")),
+            upgrade: Some("some data\r\nand yet even more data".to_string()),
             headers: vec![
-                [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
-                [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
+                [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
+                [ "Proxy-authorization".to_string(), "basic aGVsbG86d29ybGQ=".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("report request"),
+            name: "report request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "REPORT /test HTTP/1.1\r\n\
-                \r\n"),
+            raw: "REPORT /test HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Report,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/test"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/test".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/test".as_bytes());
+                for b in "/test".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("request with no http version"),
+            name: "request with no http version".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /\r\n\
-                \r\n"),
+            raw: "GET /\r\n\
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 0, minor: 9 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("m-search request"),
+            name: "m-search request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "M-SEARCH * HTTP/1.1\r\n\
+            raw: "M-SEARCH * HTTP/1.1\r\n\
                 HOST: 239.255.255.250:1900\r\n\
                 MAN: \"ssdp:discover\"\r\n\
                 ST: \"ssdp:all\"\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::MSearch,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("*"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "*".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("*".as_bytes());
+                v.push(b'*');
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("HOST"), String::from_str("239.255.255.250:1900")],
-                [ String::from_str("MAN"), String::from_str("\"ssdp:discover\"")],
-                [ String::from_str("ST"), String::from_str("\"ssdp:all\"")],
+                [ "HOST".to_string(), "239.255.255.250:1900".to_string()],
+                [ "MAN".to_string(), "\"ssdp:discover\"".to_string()],
+                [ "ST".to_string(), "\"ssdp:all\"".to_string()],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("line folding in header value"),
+            name: "line folding in header value".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET / HTTP/1.1\r\n\
+            raw: "GET / HTTP/1.1\r\n\
                 Line1:    abc\r\n\tdef\r\n ghi\r\n\t\tjkl\r\n  mno \r\n\t \tqrs\r\n\
                 Line2: \t line2\t\r\n\
                 Line3:\r\n line3\r\n\
                 Line4: \r\n \r\n\
                 Connection:\r\n close\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 5,
             headers: vec![
-                [ String::from_str("Line1"), String::from_str("abc\tdef ghi\t\tjkl  mno \t \tqrs")],
-                [ String::from_str("Line2"), String::from_str("line2\t")],
-                [ String::from_str("Line3"), String::from_str("line3")],
-                [ String::from_str("Line4"), String::from_str("")],
-                [ String::from_str("Connection"), String::from_str("close")],
+                [ "Line1".to_string(), "abc\tdef ghi\t\tjkl  mno \t \tqrs".to_string()],
+                [ "Line2".to_string(), "line2\t".to_string()],
+                [ "Line3".to_string(), "line3".to_string()],
+                [ "Line4".to_string(), "".to_string()],
+                [ "Connection".to_string(), "close".to_string()],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("host terminated by a query string"),
+            name: "host terminated by a query string".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET http://hypnotoad.org?hail=all HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET http://hypnotoad.org?hail=all HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("hail=all"),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "hail=all".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("http://hypnotoad.org?hail=all".as_bytes());
+                for b in "http://hypnotoad.org?hail=all".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
-            host: String::from_str("hypnotoad.org"),
+            host: "hypnotoad.org".to_string(),
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("host:port terminated by a query string"),
+            name: "host:port terminated by a query string".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET http://hypnotoad.org:1234?hail=all HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET http://hypnotoad.org:1234?hail=all HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("hail=all"),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "hail=all".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("http://hypnotoad.org:1234?hail=all".as_bytes());
+                for b in "http://hypnotoad.org:1234?hail=all".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
-            host: String::from_str("hypnotoad.org"),
+            host: "hypnotoad.org".to_string(),
             port: 1234,
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("host:port terminated by a space"),
+            name: "host:port terminated by a space".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET http://hypnotoad.org:1234 HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET http://hypnotoad.org:1234 HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("http://hypnotoad.org:1234".as_bytes());
+                for b in "http://hypnotoad.org:1234".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
-            host: String::from_str("hypnotoad.org"),
+            host: "hypnotoad.org".to_string(),
             port: 1234,
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("PATCH request"),
+            name: "PATCH request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "PATCH /file.txt HTTP/1.1\r\n\
+            raw: "PATCH /file.txt HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
                 Content-Type: application/example\r\n\
                 If-Match: \"e0023aa4e\"\r\n\
                 Content-Length: 10\r\n\
                 \r\n\
-                cccccccccc"),
+                cccccccccc".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Patch,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/file.txt"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/file.txt".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/file.txt".as_bytes());
+                for b in "/file.txt".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 4,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("www.example.com") ],
-                [ String::from_str("Content-Type"), String::from_str("application/example") ],
-                [ String::from_str("If-Match"), String::from_str("\"e0023aa4e\"") ],
-                [ String::from_str("Content-Length"), String::from_str("10") ],
+                [ "Host".to_string(), "www.example.com".to_string() ],
+                [ "Content-Type".to_string(), "application/example".to_string() ],
+                [ "If-Match".to_string(), "\"e0023aa4e\"".to_string() ],
+                [ "Content-Length".to_string(), "10".to_string() ],
             ],
-            body: String::from_str("cccccccccc"),
+            body: "cccccccccc".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("connect caps request"),
+            name: "connect caps request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\n\
+            raw: "CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\n\
                 User-agent: Mozilla/1.1N\r\n\
                 Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             method: HttpMethod::Connect,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("HOME0.NETSCAPE.COM:443".as_bytes());
+                for b in "HOME0.NETSCAPE.COM:443".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 2,
-            upgrade: Some(String::from_str("")),
+            upgrade: Some("".to_string()),
             headers: vec![
-                [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
-                [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
+                [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
+                [ "Proxy-authorization".to_string(), "basic aGVsbG86d29ybGQ=".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("utf-8 path request"),
+            name: "utf-8 path request".to_string(),
             tp: HttpParserType::Request,
             strict: false,
-            raw: String::from_str( 
-                "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n\
+            raw: "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n\
                 Host: github.com\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str("q=1"),
-            fragment: String::from_str("narf"),
-            request_path: String::from_str("/δ¶/δt/pope"),
+            query_string: "q=1".to_string(),
+            fragment: "narf".to_string(),
+            request_path: "/δ¶/δt/pope".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/δ¶/δt/pope?q=1#narf".as_bytes());
+                for b in "/δ¶/δt/pope?q=1#narf".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("github.com") ],
+                [ "Host".to_string(), "github.com".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("hostname underscore"),
+            name: "hostname underscore".to_string(),
             tp: HttpParserType::Request,
             strict: false,
-            raw: String::from_str( 
-                "CONNECT home_0.netscape.com:443 HTTP/1.0\r\n\
+            raw: "CONNECT home_0.netscape.com:443 HTTP/1.0\r\n\
                 User-agent: Mozilla/1.1N\r\n\
                 Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             method: HttpMethod::Connect,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str(""),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("home_0.netscape.com:443".as_bytes());
+                for b in "home_0.netscape.com:443".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 2,
             upgrade: Some(String::new()),
             headers: vec![
-                [ String::from_str("User-agent"), String::from_str("Mozilla/1.1N") ],
-                [ String::from_str("Proxy-authorization"), String::from_str("basic aGVsbG86d29ybGQ=") ],
+                [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
+                [ "Proxy-authorization".to_string(), "basic aGVsbG86d29ybGQ=".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("eat CRLF between requests, no \"Connection: close\" header"),
-            raw: String::from_str( 
-                "POST / HTTP/1.1\r\n\
+            name: "eat CRLF between requests, no \"Connection: close\" header".to_string(),
+            raw: "POST / HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
                 Content-Type: application/x-www-form-urlencoded\r\n\
                 Content-Length: 4\r\n\
                 \r\n\
-                q=42\r\n"),
+                q=42\r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("www.example.com") ],
-                [ String::from_str("Content-Type"), String::from_str("application/x-www-form-urlencoded") ],
-                [ String::from_str("Content-Length"), String::from_str("4") ],
+                [ "Host".to_string(), "www.example.com".to_string() ],
+                [ "Content-Type".to_string(), "application/x-www-form-urlencoded".to_string() ],
+                [ "Content-Length".to_string(), "4".to_string() ],
             ],
-            body: String::from_str("q=42"),
+            body: "q=42".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("eat CRLF between requests even if \"Connection: close\" is set"),
-            raw: String::from_str( 
-                "POST / HTTP/1.1\r\n\
+            name: "eat CRLF between requests even if \"Connection: close\" is set".to_string(),
+            raw: "POST / HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
                 Content-Type: application/x-www-form-urlencoded\r\n\
                 Content-Length: 4\r\n\
                 Connection: close\r\n\
                 \r\n\
-                q=42\r\n"),
+                q=42\r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Post,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 4,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("www.example.com") ],
-                [ String::from_str("Content-Type"), String::from_str("application/x-www-form-urlencoded") ],
-                [ String::from_str("Content-Length"), String::from_str("4") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Host".to_string(), "www.example.com".to_string() ],
+                [ "Content-Type".to_string(), "application/x-www-form-urlencoded".to_string() ],
+                [ "Content-Length".to_string(), "4".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str("q=42"),
+            body: "q=42".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("PURGE request"),
+            name: "PURGE request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "PURGE /file.txt HTTP/1.1\r\n\
+            raw: "PURGE /file.txt HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Purge,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/file.txt"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/file.txt".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/file.txt".as_bytes());
+                for b in "/file.txt".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("www.example.com") ],
+                [ "Host".to_string(), "www.example.com".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("SEARCH request"),
+            name: "SEARCH request".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "SEARCH / HTTP/1.1\r\n\
+            raw: "SEARCH / HTTP/1.1\r\n\
                 Host: www.example.com\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Search,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Host"), String::from_str("www.example.com") ],
+                [ "Host".to_string(), "www.example.com".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("host:port and basic_auth"),
+            name: "host:port and basic_auth".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET http://a%12:b!&*$@hypnotoad.org:1234/toto HTTP/1.1\r\n\
-                \r\n"),
+            raw: "GET http://a%12:b!&*$@hypnotoad.org:1234/toto HTTP/1.1\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/toto"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/toto".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("http://a%12:b!&*$@hypnotoad.org:1234/toto".as_bytes());
+                for b in "http://a%12:b!&*$@hypnotoad.org:1234/toto".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
-            host: String::from_str("hypnotoad.org"),
-            userinfo: String::from_str("a%12:b!&*$"),
+            host: "hypnotoad.org".to_string(),
+            userinfo: "a%12:b!&*$".to_string(),
             port: 1234,
             num_headers: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("line folding in header value"),
+            name: "line folding in header value".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET / HTTP/1.1\r\n\
+            raw: "GET / HTTP/1.1\r\n\
                 Line1:    abc\n\tdef\n ghi\n\t\tjkl\n mno \n\t \tqrs\n\
                 Line2: \t line2\t\n\
                 Line3:\n line3\n\
                 Line4: \n \n\
                 Connection:\n close\n\
-                \n"),
+                \n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/".to_string(),
             request_url: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("/".as_bytes());
+                v.push(b'/');
                 v
             },
             num_headers: 5,
             headers: vec![
-                [ String::from_str("Line1"), String::from_str("abc\tdef ghi\t\tjkl mno \t \tqrs") ],
-                [ String::from_str("Line2"), String::from_str("line2\t") ],
-                [ String::from_str("Line3"), String::from_str("line3") ],
-                [ String::from_str("Line4"), String::from_str("") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Line1".to_string(), "abc\tdef ghi\t\tjkl mno \t \tqrs".to_string() ],
+                [ "Line2".to_string(), "line2\t".to_string() ],
+                [ "Line3".to_string(), "line3".to_string() ],
+                [ "Line4".to_string(), "".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("multiple connection header values with folding"),
+            name: "multiple connection header values with folding".to_string(),
             tp: HttpParserType::Request,
-            raw: String::from_str( 
-                "GET /demo HTTP/1.1\r\n\
+            raw: "GET /demo HTTP/1.1\r\n\
                 Host: example.com\r\n\
                 Connection: Something,\r\n Upgrade, ,Keep-Alive\r\n\
                 Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n\
@@ -1085,46 +1104,48 @@ fn test_requests() {
                 Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n\
                 Origin: http://example.com\r\n\
                 \r\n\
-                Hot diggity dogg"),
+                Hot diggity dogg".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             method: HttpMethod::Get,
-            query_string: String::from_str(""),
-            fragment: String::from_str(""),
-            request_path: String::from_str("/demo"),
+            query_string: "".to_string(),
+            fragment: "".to_string(),
+            request_path: "/demo".to_string(),
             request_url: {
-                let mut v: Vec<u8> = Vec::new();
-                v.push_all("/demo".as_bytes());
+                let mut v = Vec::new();
+                for b in "/demo".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 7,
-            upgrade: Some(String::from_str("Hot diggity dogg")),
+            upgrade: Some("Hot diggity dogg".to_string()),
             headers: vec![
-                [ String::from_str("Host"), String::from_str("example.com") ],
-                [ String::from_str("Connection"), String::from_str("Something, Upgrade, ,Keep-Alive") ],
-                [ String::from_str("Sec-WebSocket-Key2"), String::from_str("12998 5 Y3 1  .P00") ],
-                [ String::from_str("Sec-WebSocket-Protocol"), String::from_str("sample") ],
-                [ String::from_str("Upgrade"), String::from_str("WebSocket") ],
-                [ String::from_str("Sec-WebSocket-Key1"), String::from_str("4 @1  46546xW%0l 1 5") ],
-                [ String::from_str("Origin"), String::from_str("http://example.com") ],
+                [ "Host".to_string(), "example.com".to_string() ],
+                [ "Connection".to_string(), "Something, Upgrade, ,Keep-Alive".to_string() ],
+                [ "Sec-WebSocket-Key2".to_string(), "12998 5 Y3 1  .P00".to_string() ],
+                [ "Sec-WebSocket-Protocol".to_string(), "sample".to_string() ],
+                [ "Upgrade".to_string(), "WebSocket".to_string() ],
+                [ "Sec-WebSocket-Key1".to_string(), "4 @1  46546xW%0l 1 5".to_string() ],
+                [ "Origin".to_string(), "http://example.com".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
     ];
 
-    const GET_NO_HEADERS_NO_BODY : uint = 4;
-    const GET_ONE_HEADER_NO_BODY : uint = 5;
-    const GET_FUNKY_CONTENT_LENGTH : uint = 6;
-    const POST_IDENTITY_BODY_WORLD : uint = 7;
-    const POST_CHUNKED_ALL_YOUR_BASE : uint = 8;
-    const TWO_CHUNKS_MULT_ZERO_END : uint = 9;
-    const CHUNKED_W_TRAILING_HEADERS : uint = 10;
-    const CHUNKED_W_BULLSHIT_AFTER_LENGTH : uint = 11;
-    const QUERY_URL_WITH_QUESTION_MARK_GET : uint = 14;
-    const PREFIX_NEWLINE_GET : uint = 15;
-    const CONNECT_REQUEST : uint = 17;
+    const GET_NO_HEADERS_NO_BODY : usize = 4;
+    const GET_ONE_HEADER_NO_BODY : usize = 5;
+    const GET_FUNKY_CONTENT_LENGTH : usize = 6;
+    const POST_IDENTITY_BODY_WORLD : usize = 7;
+    const POST_CHUNKED_ALL_YOUR_BASE : usize = 8;
+    const TWO_CHUNKS_MULT_ZERO_END : usize = 9;
+    const CHUNKED_W_TRAILING_HEADERS : usize = 10;
+    const CHUNKED_W_BULLSHIT_AFTER_LENGTH : usize = 11;
+    const QUERY_URL_WITH_QUESTION_MARK_GET : usize = 14;
+    const PREFIX_NEWLINE_GET : usize = 15;
+    const CONNECT_REQUEST : usize = 17;
 
     // End REQUESTS
 

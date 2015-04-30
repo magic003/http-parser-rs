@@ -1,6 +1,6 @@
 use parser::HttpParser;
 
-#[derive(Copy)]
+#[derive(Clone)]
 pub enum CallbackDecision {
     Nothing,
     SkipBody,

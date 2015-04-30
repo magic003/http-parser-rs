@@ -11,10 +11,9 @@ fn test_responses() {
     // RESPONSES
     let responses: [helper::Message; 22] = [
         helper::Message {
-            name: String::from_str("google 301"),
+            name: "google 301".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 301 Moved Permanently\r\n\
+            raw: "HTTP/1.1 301 Moved Permanently\r\n\
                 Location: http://www.google.com/\r\n\
                 Content-Type: text/html; charset=UTF-8\r\n\
                 Date: Sun, 26 Apr 2009 11:11:49 GMT\r\n\
@@ -29,39 +28,40 @@ fn test_responses() {
                 <H1>301 Moved</H1>\n\
                 The document has moved\n\
                 <A HREF=\"http://www.google.com/\">here</A>.\r\n\
-                </BODY></HTML>\r\n"),
+                </BODY></HTML>\r\n".to_string(),
             should_keep_alive: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("Moved Permanently".as_bytes());
+                    for b in "Moved Permanently".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 8,
             headers: vec![
-                [ String::from_str("Location"), String::from_str("http://www.google.com/") ],
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=UTF-8") ],
-                [ String::from_str("Date"), String::from_str("Sun, 26 Apr 2009 11:11:49 GMT") ],
-                [ String::from_str("Expires"), String::from_str("Tue, 26 May 2009 11:11:49 GMT") ],
-                [ String::from_str("X-$PrototypeBI-Version"), String::from_str("1.6.0.3") ],
-                [ String::from_str("Cache-Control"), String::from_str("public, max-age=2592000") ],
-                [ String::from_str("Server"), String::from_str("gws") ],
-                [ String::from_str("Content-Length"), String::from_str("219 ") ],
+                [ "Location".to_string(), "http://www.google.com/".to_string() ],
+                [ "Content-Type".to_string(), "text/html; charset=UTF-8".to_string() ],
+                [ "Date".to_string(), "Sun, 26 Apr 2009 11:11:49 GMT".to_string() ],
+                [ "Expires".to_string(), "Tue, 26 May 2009 11:11:49 GMT".to_string() ],
+                [ "X-$PrototypeBI-Version".to_string(), "1.6.0.3".to_string() ],
+                [ "Cache-Control".to_string(), "public, max-age=2592000".to_string() ],
+                [ "Server".to_string(), "gws".to_string() ],
+                [ "Content-Length".to_string(), "219 ".to_string() ],
             ],
-            body: String::from_str("<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
-                                    <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
-                                    <H1>301 Moved</H1>\n\
-                                    The document has moved\n\
-                                    <A HREF=\"http://www.google.com/\">here</A>.\r\n\
-                                    </BODY></HTML>\r\n"),
+            body: "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n\
+                        <TITLE>301 Moved</TITLE></HEAD><BODY>\n\
+                        <H1>301 Moved</H1>\n\
+                        The document has moved\n\
+                        <A HREF=\"http://www.google.com/\">here</A>.\r\n\
+                        </BODY></HTML>\r\n".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("no content-length response"),
+            name: "no content-length response".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Date: Tue, 04 Aug 2009 07:59:32 GMT\r\n\
                 Server: Apache\r\n\
                 X-Powered-By: Servlet/2.5 JSP/2.1\r\n\
@@ -76,77 +76,83 @@ fn test_responses() {
                       <faultstring>Client Error</faultstring>\n\
                     </SOAP-ENV:Fault>\n\
                   </SOAP-ENV:Body>\n\
-                </SOAP-ENV:Envelop>"),
+                </SOAP-ENV:Envelop>".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 5,
             headers: vec![
-                [ String::from_str("Date"), String::from_str("Tue, 04 Aug 2009 07:59:32 GMT") ],
-                [ String::from_str("Server"), String::from_str("Apache") ],
-                [ String::from_str("X-Powered-By"), String::from_str("Servlet/2.5 JSP/2.1") ],
-                [ String::from_str("Content-Type"), String::from_str("text/xml; charset=utf-8") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Date".to_string(), "Tue, 04 Aug 2009 07:59:32 GMT".to_string() ],
+                [ "Server".to_string(), "Apache".to_string() ],
+                [ "X-Powered-By".to_string(), "Servlet/2.5 JSP/2.1".to_string() ],
+                [ "Content-Type".to_string(), "text/xml; charset=utf-8".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-                                    <SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n\
-                                      <SOAP-ENV:Body>\n\
-                                        <SOAP-ENV:Fault>\n\
-                                          <faultcode>SOAP-ENV:Client</faultcode>\n\
-                                          <faultstring>Client Error</faultstring>\n\
-                                        </SOAP-ENV:Fault>\n\
-                                      </SOAP-ENV:Body>\n\
-                                    </SOAP-ENV:Envelop>"),
+            body: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                        <SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n\
+                          <SOAP-ENV:Body>\n\
+                            <SOAP-ENV:Fault>\n\
+                              <faultcode>SOAP-ENV:Client</faultcode>\n\
+                              <faultstring>Client Error</faultstring>\n\
+                            </SOAP-ENV:Fault>\n\
+                          </SOAP-ENV:Body>\n\
+                        </SOAP-ENV:Envelop>".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("404 no headers no body"),
+            name: "404 no headers no body".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str("HTTP/1.1 404 Not Found\r\n\r\n"),
+            raw: "HTTP/1.1 404 Not Found\r\n\r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 404,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("Not Found".as_bytes());
+                    for b in "Not Found".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 0,
             headers: vec![ ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("301 no response phrase"),
+            name: "301 no response phrase".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str("HTTP/1.1 301\r\n\r\n"),
+            raw: "HTTP/1.1 301\r\n\r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("".as_bytes());
+                    // FIXME no need to push?
+                    for b in "".as_bytes() {
+                         v.push(*b);
+                    }
                     v
             },
             num_headers: 0,
             headers: vec![ ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("200 trailing space on chunked body"),
+            name: "200 trailing space on chunked body".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/plain\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
@@ -157,115 +163,119 @@ fn test_responses() {
                 and this is the second one\r\n\
                 \r\n\
                 0  \r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 2,
             headers: vec![
-                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ "Content-Type".to_string(), "text/plain".to_string() ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
             body_size: 37+28,
-            body: String::from_str("This is the data in the first chunk\r\n\
-                                    and this is the second one\r\n"),
+            body: "This is the data in the first chunk\r\n\
+                    and this is the second one\r\n".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("no carriage ret"),
+            name: "no carriage ret".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\n\
+            raw: "HTTP/1.1 200 OK\n\
                 Content-Type: text/html; charset=utf-8\n\
                 Connection: close\n\
                 \n\
-                these headers are from http://news.ycombinator.com/"),
+                these headers are from http://news.ycombinator.com/".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 2,
             headers: vec![
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=utf-8") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Content-Type".to_string(), "text/html; charset=utf-8".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str("these headers are from http://news.ycombinator.com/"),
+            body: "these headers are from http://news.ycombinator.com/".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("proxy connection"),
+            name: "proxy connection".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/html; charset=UTF-8\r\n\
                 Content-Length: 11\r\n\
                 Proxy-Connection: close\r\n\
                 Date: Thu, 31 Dec 2009 20:55:48 +0000\r\n\
                 \r\n\
-                hello world"),
+                hello world".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 4,
             headers: vec![
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=UTF-8") ],
-                [ String::from_str("Content-Length"), String::from_str("11") ],
-                [ String::from_str("Proxy-Connection"), String::from_str("close") ],
-                [ String::from_str("Date"), String::from_str("Thu, 31 Dec 2009 20:55:48 +0000") ],
+                [ "Content-Type".to_string(), "text/html; charset=UTF-8".to_string() ],
+                [ "Content-Length".to_string(), "11".to_string() ],
+                [ "Proxy-Connection".to_string(), "close".to_string() ],
+                [ "Date".to_string(), "Thu, 31 Dec 2009 20:55:48 +0000".to_string() ],
             ],
-            body: String::from_str("hello world"),
+            body: "hello world".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("underscore header key"),
+            name: "underscore header key".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Server: DCLK-AdSvr\r\n\
                 Content-Type: text/xml\r\n\
                 Content-Length: 0\r\n\
-                DCLK_imp: v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o\r\n\r\n"),
+                DCLK_imp: v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o\r\n\r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 4,
             headers: vec![
-                [ String::from_str("Server"), String::from_str("DCLK-AdSvr") ],
-                [ String::from_str("Content-Type"), String::from_str("text/xml") ],
-                [ String::from_str("Content-Length"), String::from_str("0") ],
-                [ String::from_str("DCLK_imp"), String::from_str("v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o") ],
+                [ "Server".to_string(), "DCLK-AdSvr".to_string() ],
+                [ "Content-Type".to_string(), "text/xml".to_string() ],
+                [ "Content-Length".to_string(), "0".to_string() ],
+                [ "DCLK_imp".to_string(), "v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("bonjourmadame.fr"),
+            name: "bonjourmadame.fr".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.0 301 Moved Permanently\r\n\
+            raw: "HTTP/1.0 301 Moved Permanently\r\n\
                 Date: Thu, 03 Jun 2010 09:56:32 GMT\r\n\
                 Server: Apache/2.2.3 (Red Hat)\r\n\
                 Cache-Control: public\r\n\
@@ -275,36 +285,37 @@ fn test_responses() {
                 Content-Length: 0\r\n\
                 Content-Type: text/html; charset=UTF-8\r\n\
                 Connection: keep-alive\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 301,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("Moved Permanently".as_bytes());
+                    for b in "Moved Permanently".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 9,
             headers: vec![
-                [ String::from_str("Date"), String::from_str("Thu, 03 Jun 2010 09:56:32 GMT") ],
-                [ String::from_str("Server"), String::from_str("Apache/2.2.3 (Red Hat)") ],
-                [ String::from_str("Cache-Control"), String::from_str("public") ],
-                [ String::from_str("Pragma"), String::from_str("") ],
-                [ String::from_str("Location"), String::from_str("http://www.bonjourmadame.fr/") ],
-                [ String::from_str("Vary"), String::from_str("Accept-Encoding") ],
-                [ String::from_str("Content-Length"), String::from_str("0") ],
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=UTF-8") ],
-                [ String::from_str("Connection"), String::from_str("keep-alive") ],
+                [ "Date".to_string(), "Thu, 03 Jun 2010 09:56:32 GMT".to_string() ],
+                [ "Server".to_string(), "Apache/2.2.3 (Red Hat)".to_string() ],
+                [ "Cache-Control".to_string(), "public".to_string() ],
+                [ "Pragma".to_string(), "".to_string() ],
+                [ "Location".to_string(), "http://www.bonjourmadame.fr/".to_string() ],
+                [ "Vary".to_string(), "Accept-Encoding".to_string() ],
+                [ "Content-Length".to_string(), "0".to_string() ],
+                [ "Content-Type".to_string(), "text/html; charset=UTF-8".to_string() ],
+                [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("field underscore"),
+            name: "field underscore".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Date: Tue, 28 Sep 2010 01:14:13 GMT\r\n\
                 Server: Apache\r\n\
                 Cache-Control: no-cache, must-revalidate\r\n\
@@ -317,253 +328,263 @@ fn test_responses() {
                 Content-Type: text/html\r\n\
                 Connection: close\r\n\
                 \r\n\
-                0\r\n\r\n"),
+                0\r\n\r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 11,
             headers: vec![
-                [ String::from_str("Date"), String::from_str("Tue, 28 Sep 2010 01:14:13 GMT") ],
-                [ String::from_str("Server"), String::from_str("Apache") ],
-                [ String::from_str("Cache-Control"), String::from_str("no-cache, must-revalidate") ],
-                [ String::from_str("Expires"), String::from_str("Mon, 26 Jul 1997 05:00:00 GMT") ],
-                [ String::from_str(".et-Cookie"), String::from_str("PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com") ],
-                [ String::from_str("Vary"), String::from_str("Accept-Encoding") ],
-                [ String::from_str("_eep-Alive"), String::from_str("timeout=45") ],
-                [ String::from_str("_onnection"), String::from_str("Keep-Alive") ],
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
-                [ String::from_str("Content-Type"), String::from_str("text/html") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Date".to_string(), "Tue, 28 Sep 2010 01:14:13 GMT".to_string() ],
+                [ "Server".to_string(), "Apache".to_string() ],
+                [ "Cache-Control".to_string(), "no-cache, must-revalidate".to_string() ],
+                [ "Expires".to_string(), "Mon, 26 Jul 1997 05:00:00 GMT".to_string() ],
+                [ ".et-Cookie".to_string(), "PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com".to_string() ],
+                [ "Vary".to_string(), "Accept-Encoding".to_string() ],
+                [ "_eep-Alive".to_string(), "timeout=45".to_string() ],
+                [ "_onnection".to_string(), "Keep-Alive".to_string() ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
+                [ "Content-Type".to_string(), "text/html".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("non-ASCII in status line"),
+            name: "non-ASCII in status line".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 500 Oriëntatieprobleem\r\n\
+            raw: "HTTP/1.1 500 Oriëntatieprobleem\r\n\
                 Date: Fri, 5 Nov 2010 23:07:12 GMT+2\r\n\
                 Content-Length: 0\r\n\
                 Connection: close\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 500,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("Oriëntatieprobleem".as_bytes());
+                for b in "Oriëntatieprobleem".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 3,
             headers: vec![
-                [ String::from_str("Date"), String::from_str("Fri, 5 Nov 2010 23:07:12 GMT+2") ],
-                [ String::from_str("Content-Length"), String::from_str("0") ],
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Date".to_string(), "Fri, 5 Nov 2010 23:07:12 GMT+2".to_string() ],
+                [ "Content-Length".to_string(), "0".to_string() ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("http version 0.9"),
+            name: "http version 0.9".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/0.9 200 OK\r\n\
-                \r\n"),
+            raw: "HTTP/0.9 200 OK\r\n\
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 0, minor: 9 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
             headers: vec![
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("neither content-length nor transfer-encoding response"),
+            name: "neither content-length nor transfer-encoding response".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Content-Type: text/plain\r\n\
                 \r\n\
-                hello world"),
+                hello world".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+                [ "Content-Type".to_string(), "text/plain".to_string() ],
             ],
-            body: String::from_str("hello world"),
+            body: "hello world".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.0 with keep-alive and EOF-terminated 200 status"),
+            name: "HTTP/1.0 with keep-alive and EOF-terminated 200 status".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.0 200 OK\r\n\
+            raw: "HTTP/1.0 200 OK\r\n\
                 Connection: keep-alive\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Connection"), String::from_str("keep-alive") ],
+                [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.0 with keep-alive and a 204 status"),
+            name: "HTTP/1.0 with keep-alive and a 204 status".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.0 204 No content\r\n\
+            raw: "HTTP/1.0 204 No content\r\n\
                 Connection: keep-alive\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("No content".as_bytes());
+                for b in "No content".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Connection"), String::from_str("keep-alive") ],
+                [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.1 with an EOF-terminated 200 status"),
+            name: "HTTP/1.1 with an EOF-terminated 200 status".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
-                \r\n"),
+            raw: "HTTP/1.1 200 OK\r\n\
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
             headers: vec![
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.1 with a 204 status"),
+            name: "HTTP/1.1 with a 204 status".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 204 No content\r\n\
-                \r\n"),
+            raw: "HTTP/1.1 204 No content\r\n\
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("No content".as_bytes());
+                for b in "No content".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
             headers: vec![
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.1 with a 204 status and keep-alive disabled"),
+            name: "HTTP/1.1 with a 204 status and keep-alive disabled".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 204 No content\r\n\
+            raw: "HTTP/1.1 204 No content\r\n\
                 Connection: close\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 204,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("No content".as_bytes());
+                for b in "No content".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Connection"), String::from_str("close") ],
+                [ "Connection".to_string(), "close".to_string() ],
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("HTTP/1.1 with chunked encoding and a 200 response"),
+            name: "HTTP/1.1 with chunked encoding and a 200 response".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Transfer-Encoding: chunked\r\n\
                 \r\n\
                 0\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 1,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
             body_size: 0,
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("field space"),
+            name: "field space".to_string(),
             tp: HttpParserType::Response,
             strict: false,
-            raw: String::from_str(
-                "HTTP/1.1 200 OK\r\n\
+            raw: "HTTP/1.1 200 OK\r\n\
                 Server: Microsoft-IIS/6.0\r\n\
                 X-Powered-By: ASP.NET\r\n\
                 en-US Content-Type: text/xml\r\n\
@@ -572,35 +593,36 @@ fn test_responses() {
                 Date: Fri, 23 Jul 2010 18:45:38 GMT\r\n\
                 Connection: keep-alive\r\n\
                 \r\n\
-                <xml>hello</xml>"),
+                <xml>hello</xml>".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("OK".as_bytes());
+                for b in "OK".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 7,
             headers: vec![
-                [ String::from_str("Server"), String::from_str("Microsoft-IIS/6.0") ],
-                [ String::from_str("X-Powered-By"), String::from_str("ASP.NET") ],
-                [ String::from_str("en-US Content-Type"), String::from_str("text/xml") ],
-                [ String::from_str("Content-Type"), String::from_str("text/xml") ],
-                [ String::from_str("Content-Length"), String::from_str("16") ],
-                [ String::from_str("Date"), String::from_str("Fri, 23 Jul 2010 18:45:38 GMT") ],
-                [ String::from_str("Connection"), String::from_str("keep-alive") ],
+                [ "Server".to_string(), "Microsoft-IIS/6.0".to_string() ],
+                [ "X-Powered-By".to_string(), "ASP.NET".to_string() ],
+                [ "en-US Content-Type".to_string(), "text/xml".to_string() ],
+                [ "Content-Type".to_string(), "text/xml".to_string() ],
+                [ "Content-Length".to_string(), "16".to_string() ],
+                [ "Date".to_string(), "Fri, 23 Jul 2010 18:45:38 GMT".to_string() ],
+                [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
-            body: String::from_str("<xml>hello</xml>"),
+            body: "<xml>hello</xml>".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("amazon.com"),
+            name: "amazon.com".to_string(),
             tp: HttpParserType::Response,
             strict: false,
-            raw: String::from_str(
-                "HTTP/1.1 301 MovedPermanently\r\n\
+            raw: "HTTP/1.1 301 MovedPermanently\r\n\
                 Date: Wed, 15 May 2013 17:06:33 GMT\r\n\
                 Server: Server\r\n\
                 x-amz-id-1: 0GPHKXSJQ826RK7GZEB2\r\n\
@@ -614,61 +636,65 @@ fn test_responses() {
                 1\r\n\
                 \n\r\n\
                 0\r\n\
-                \r\n"),
+                \r\n".to_string(),
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 301,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("MovedPermanently".as_bytes());
+                for b in "MovedPermanently".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 9,
             headers: vec![
-                [ String::from_str("Date"), String::from_str("Wed, 15 May 2013 17:06:33 GMT") ],
-                [ String::from_str("Server"), String::from_str("Server") ],
-                [ String::from_str("x-amz-id-1"), String::from_str("0GPHKXSJQ826RK7GZEB2") ],
-                [ String::from_str("p3p"), String::from_str("policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"") ],
-                [ String::from_str("x-amz-id-2"), String::from_str("STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD") ],
-                [ String::from_str("Location"), String::from_str("http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846") ],
-                [ String::from_str("Vary"), String::from_str("Accept-Encoding,User-Agent") ],
-                [ String::from_str("Content-Type"), String::from_str("text/html; charset=ISO-8859-1") ],
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
+                [ "Date".to_string(), "Wed, 15 May 2013 17:06:33 GMT".to_string() ],
+                [ "Server".to_string(), "Server".to_string() ],
+                [ "x-amz-id-1".to_string(), "0GPHKXSJQ826RK7GZEB2".to_string() ],
+                [ "p3p".to_string(), "policyref=\"http://www.amazon.com/w3c/p3p.xml\",CP=\"CAO DSP LAW CUR ADM IVAo IVDo CONo OTPo OUR DELi PUBi OTRi BUS PHY ONL UNI PUR FIN COM NAV INT DEM CNT STA HEA PRE LOC GOV OTC \"".to_string() ],
+                [ "x-amz-id-2".to_string(), "STN69VZxIFSz9YJLbz1GDbxpbjG6Qjmmq5E3DxRhOUw+Et0p4hr7c/Q8qNcx4oAD".to_string() ],
+                [ "Location".to_string(), "http://www.amazon.com/Dan-Brown/e/B000AP9DSU/ref=s9_pop_gw_al1?_encoding=UTF8&refinementId=618073011&pf_rd_m=ATVPDKIKX0DER&pf_rd_s=center-2&pf_rd_r=0SHYY5BZXN3KR20BNFAY&pf_rd_t=101&pf_rd_p=1263340922&pf_rd_i=507846".to_string() ],
+                [ "Vary".to_string(), "Accept-Encoding,User-Agent".to_string() ],
+                [ "Content-Type".to_string(), "text/html; charset=ISO-8859-1".to_string() ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
-            body: String::from_str("\n"),
+            body: "\n".to_string(),
             ..Default::default()
         },
         helper::Message {
-            name: String::from_str("empty reason phrase after space"),
+            name: "empty reason phrase after space".to_string(),
             tp: HttpParserType::Response,
-            raw: String::from_str(
-                "HTTP/1.1 200 \r\n\
-                \r\n"),
+            raw: "HTTP/1.1 200 \r\n\
+                \r\n".to_string(),
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
             status_code: 200,
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
-                v.push_all("".as_bytes());
+                // FIXME no need to push?
+                for b in "".as_bytes() {
+                    v.push(*b);
+                }
                 v
             },
             num_headers: 0,
             headers: vec![
             ],
-            body: String::from_str(""),
+            body: "".to_string(),
             ..Default::default()
         },
     ];
 
-    const NO_HEADERS_NO_BODY_404 : uint = 2;
-    const NO_REASON_PHRASE : uint = 3;
-    const TRAILING_SPACE_ON_CHUNKED_BODY : uint = 4;
-    const NO_CARRIAGE_RET : uint = 5;
-    const UNDERSCORE_HEADER_KEY : uint = 7;
-    const BONJOUR_MADAME_FR : uint = 8;
-    const NO_BODY_HTTP10_KA_204 : uint = 14;
+    const NO_HEADERS_NO_BODY_404 : usize = 2;
+    const NO_REASON_PHRASE : usize = 3;
+    const TRAILING_SPACE_ON_CHUNKED_BODY : usize = 4;
+    const NO_CARRIAGE_RET : usize = 5;
+    const UNDERSCORE_HEADER_KEY : usize = 7;
+    const BONJOUR_MADAME_FR : usize = 8;
+    const NO_BODY_HTTP10_KA_204 : usize = 14;
 
     // End of RESPONSES
     for m in responses.iter() {
@@ -695,7 +721,7 @@ fn test_responses() {
     // test very large chunked response
     {
         let large_chunked = helper::Message {
-            name: String::from_str("large chunked"),
+            name: "large chunked".to_string(),
             tp: HttpParserType::Response,
             raw: create_large_chunked_message(31337,
                 "HTTP/1.0 200 OK\r\n\
@@ -707,14 +733,16 @@ fn test_responses() {
             http_version: HttpVersion { major: 1, minor: 0 },
             status_code: 200,
             response_status: {
-                    let mut v: Vec<u8> = Vec::new();
-                    v.push_all("OK".as_bytes());
+                    let mut v = Vec::new();
+                    for b in "OK".as_bytes() {
+                        v.push(*b);
+                    }
                     v
             },
             num_headers: 2,
             headers: vec![
-                [ String::from_str("Transfer-Encoding"), String::from_str("chunked") ],
-                [ String::from_str("Content-Type"), String::from_str("text/plain") ],
+                [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
+                [ "Content-Type".to_string(), "text/plain".to_string() ],
             ],
             body_size: 31337*1024,
             ..Default::default()
@@ -747,7 +775,7 @@ fn test_message_count_body(msg: &helper::Message) {
     let mut i : usize = 0;
     while i < len {
         let toread : usize = std::cmp::min(len-i, chunk);
-        read = hp.execute(&mut cb, msg.raw.as_bytes().slice(i, i + toread));
+        read = hp.execute(&mut cb, &msg.raw.as_bytes()[i .. i + toread]);
         if read != toread {
             helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
             panic!();
@@ -767,12 +795,12 @@ fn test_message_count_body(msg: &helper::Message) {
     helper::assert_eq_message(&cb.messages[0], msg);
 }
 
-fn create_large_chunked_message(body_size_in_kb: uint, headers: &str) -> String {
-    let mut buf = String::from_str(headers);
+fn create_large_chunked_message(body_size_in_kb: usize, headers: &str) -> String {
+    let mut buf = headers.to_string();
 
-    for _ in range(0, body_size_in_kb) {
+    for _ in (0..body_size_in_kb) {
         buf.push_str("400\r\n");
-        for _ in range(0i, 1024i) {
+        for _ in (0u32..1024u32) {
             buf.push('C');
         }
         buf.push_str("\r\n");
