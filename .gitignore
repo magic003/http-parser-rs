@@ -12,3 +12,4 @@
 
 # executable created for debug purpose
 lib
+Cargo.lock
