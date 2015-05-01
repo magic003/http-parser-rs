@@ -6,7 +6,7 @@ use flags::Flags;
 use error::HttpErrno;
 use http_method::HttpMethod;
 use http_version::HttpVersion;
-use callback::{HttpParserCallback, CallbackDecision, CallbackResult};
+use callback::{HttpParserCallback, CallbackDecision};
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum HttpParserType {
@@ -72,8 +72,6 @@ macro_rules! callback_data(
             if $parser.errno.is_some() {
                 return $idx;
             }
-            // Necessary to reset mark, though it causes unused warning
-            $mark = None;
         }
     );
 );
@@ -386,9 +384,8 @@ impl HttpParser {
             }
 
             // using loop to mimic 'goto reexecute_byte' in http_parser.c
-            let mut retry = false;
             loop {
-                retry = false;  // reset in each loop
+                let mut retry = false;
                 match self.state {
                     State::Dead => {
                         if ch != CR && ch != LF {
@@ -572,12 +569,14 @@ impl HttpParser {
                             callback_data!(self, status_mark,
                                 cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBStatus, index+1);
+                            status_mark = None;
                         } else if ch == LF {
                             self.state = State::HeaderFieldStart;
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBStatus, index+1);
+                            status_mark = None;
                         }
                     },
                     State::ResLineAlmostDone => {
@@ -753,6 +752,7 @@ impl HttpParser {
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBUrl, index+1);
+                                url_mark = None;
                             },
                             CR | LF => {
                                 self.http_version.major = 0;
@@ -766,6 +766,7 @@ impl HttpParser {
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBUrl, index+1);
+                                url_mark = None;
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self, self.state, ch);
@@ -999,6 +1000,7 @@ impl HttpParser {
                             callback_data!(self, header_field_mark,
                                 cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderField, index+1);
+                            header_field_mark = None;
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
                             return index;
@@ -1025,7 +1027,7 @@ impl HttpParser {
 
                         match self.header_state {
                             HeaderState::Upgrade => {
-                                self.flags |= Flags::UPGRADE.as_u8();
+                                self.flags |= Flags::Upgrade.as_u8();
                                 self.header_state = HeaderState::General;
                             },
                             HeaderState::TransferEncoding => {
@@ -1065,12 +1067,14 @@ impl HttpParser {
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index+1);
+                            header_value_mark = None;
                         } else if ch == LF {
                             self.state = State::HeaderAlmostDone;
                             assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index);
+                            header_value_mark = None;
                             retry = true;
                         } else {
                             let c : u8 = lower(ch);
@@ -1158,13 +1162,13 @@ impl HttpParser {
                             // finished the header
                             match self.header_state {
                                 HeaderState::ConnectionKeepAlive => {
-                                    self.flags |= Flags::CONNECTION_KEEP_ALIVE.as_u8();
+                                    self.flags |= Flags::ConnectionKeepAlive.as_u8();
                                 },
                                 HeaderState::ConnectionClose => {
-                                    self.flags |= Flags::CONNECTION_CLOSE.as_u8();
+                                    self.flags |= Flags::ConnectionClose.as_u8();
                                 },
                                 HeaderState::TransferEncodingChunked => {
-                                    self.flags |= Flags::CHUNKED.as_u8();
+                                    self.flags |= Flags::Chunked.as_u8();
                                 },
                                 _ => (),
                             }
@@ -1188,13 +1192,14 @@ impl HttpParser {
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index);
+                            header_value_mark = None;
                             retry = true;
                         }
                     },
                     State::HeadersAlmostDone => {
                         strict_check!(self, ch != LF, index);
 
-                        if (self.flags & Flags::TRAILING.as_u8()) > 0 {
+                        if (self.flags & Flags::Trailing.as_u8()) > 0 {
                             // End of a chunked request
                             self.state = new_message!(self);
                             assert_ok!(self);
@@ -1208,7 +1213,7 @@ impl HttpParser {
 
                             // Set this here so that on_headers_complete()
                             // callbacks can see it
-                            self.upgrade = (self.flags & Flags::UPGRADE.as_u8() != 0) ||
+                            self.upgrade = (self.flags & Flags::Upgrade.as_u8() != 0) ||
                                 self.method == HttpMethod::Connect;
 
                             // Here we call the headers_complete callback. This is somewhat
@@ -1224,7 +1229,7 @@ impl HttpParser {
                             // TODO can we handle this in our case?
                             match cb.on_headers_complete(self) {
                                 Ok(CallbackDecision::Nothing) => (),
-                                Ok(CallbackDecision::SkipBody) => self.flags |= Flags::SKIPBODY.as_u8(),
+                                Ok(CallbackDecision::SkipBody) => self.flags |= Flags::SkipBody.as_u8(),
                                 _     => {
                                     self.errno = Option::Some(HttpErrno::CBHeadersComplete);
                                     return index; // Error
@@ -1253,7 +1258,7 @@ impl HttpParser {
                             return index+1;
                         }
 
-                        if (self.flags & Flags::SKIPBODY.as_u8()) != 0 {
+                        if (self.flags & Flags::SkipBody.as_u8()) != 0 {
                             self.state = new_message!(self);
                             assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
@@ -1261,7 +1266,7 @@ impl HttpParser {
                             if self.errno.is_some() {
                                 return index+1;
                             }
-                        } else if (self.flags & Flags::CHUNKED.as_u8()) != 0 {
+                        } else if (self.flags & Flags::Chunked.as_u8()) != 0 {
                             // chunked encoding - ignore Content-Length header
                             self.state = State::ChunkSizeStart;
                         } else {
@@ -1306,7 +1311,7 @@ impl HttpParser {
                         // Further, if content_length ends up at 0, we want to see the last
                         // byte again for our message complete callback.
                         mark!(body_mark, index);
-                        self.content_length -= (to_read as u64);
+                        self.content_length -= to_read as u64;
 
                         index += to_read - 1;
 
@@ -1325,6 +1330,7 @@ impl HttpParser {
                             callback_data!(self, body_mark,
                                 cb.on_body(self, &data[body_mark.unwrap() as usize .. (index + 1) as usize]),
                                 HttpErrno::CBBody, index);
+                            body_mark = None;
                             retry = true;
                         }
                     },
@@ -1344,7 +1350,7 @@ impl HttpParser {
                     },
                     State::ChunkSizeStart => {
                         assert!(self.nread == 1);
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
 
                         let unhex_val : i8 = UNHEX[ch as usize];
                         if unhex_val == -1 {
@@ -1356,7 +1362,7 @@ impl HttpParser {
                         self.state = State::ChunkSize;
                     },
                     State::ChunkSize => {
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
 
                         if ch == CR {
                             self.state = State::ChunkSizeAlmostDone;
@@ -1385,20 +1391,20 @@ impl HttpParser {
                         }
                     },
                     State::ChunkParameters => {
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         // just ignore this shit. TODO check for overflow
                         if ch == CR {
                             self.state = State::ChunkSizeAlmostDone;
                         }
                     },
                     State::ChunkSizeAlmostDone => {
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         strict_check!(self, ch != LF, index);
 
                         self.nread = 0;
 
                         if self.content_length == 0 {
-                            self.flags |= Flags::TRAILING.as_u8();
+                            self.flags |= Flags::Trailing.as_u8();
                             self.state = State::HeaderFieldStart;
                         } else {
                             self.state = State::ChunkData;
@@ -1407,14 +1413,14 @@ impl HttpParser {
                     State::ChunkData => {
                         let to_read : usize = cmp::min(self.content_length,
                                                          (len - index) as u64) as usize;
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         assert!(self.content_length != 0 &&
                                 self.content_length != ULLONG_MAX);
 
                         // See the explanation in s_body_identity for why the content
                         // length and data pointers are managed this way.
                         mark!(body_mark, index);
-                        self.content_length -= (to_read as u64);
+                        self.content_length -= to_read as u64;
                         index += to_read - 1;
 
                         if self.content_length == 0 {
@@ -1422,7 +1428,7 @@ impl HttpParser {
                         }
                     },
                     State::ChunkDataAlmostDone => {
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         assert!(self.content_length == 0);
                         strict_check!(self, ch != CR, index);
                         self.state = State::ChunkDataDone;
@@ -1431,9 +1437,10 @@ impl HttpParser {
                         callback_data!(self, body_mark,
                             cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
                             HttpErrno::CBBody, index+1);
+                        body_mark = None;
                     },
                     State::ChunkDataDone => {
-                        assert!(self.flags & Flags::CHUNKED.as_u8() != 0);
+                        assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         strict_check!(self, ch != LF, index);
                         self.nread = 0;
                         self.state = State::ChunkSizeStart;
@@ -1621,11 +1628,11 @@ impl HttpParser {
         if self.status_code / 100 == 1 || // 1xx e.g. Continue
             self.status_code == 204 ||    // No Content
             self.status_code == 304 ||    // Not Modified
-            (self.flags & Flags::SKIPBODY.as_u8()) != 0 {// response to a HEAD request
+            (self.flags & Flags::SkipBody.as_u8()) != 0 {// response to a HEAD request
             return false
         }
 
-        if (self.flags & Flags::CHUNKED.as_u8() != 0) ||
+        if (self.flags & Flags::Chunked.as_u8() != 0) ||
             self.content_length != ULLONG_MAX {
             return false
         }
@@ -1636,12 +1643,12 @@ impl HttpParser {
     pub fn http_should_keep_alive(&self) -> bool {
         if self.http_version.major > 0 && self.http_version.minor > 0 {
             // HTTP/1.1
-            if (self.flags & Flags::CONNECTION_CLOSE.as_u8()) != 0 {
+            if (self.flags & Flags::ConnectionClose.as_u8()) != 0 {
                 return false
             }
         } else {
             // HTTP/1.0 or earlier
-            if (self.flags & Flags::CONNECTION_KEEP_ALIVE.as_u8()) == 0 {
+            if (self.flags & Flags::ConnectionKeepAlive.as_u8()) == 0 {
                 return false
             }
         }
