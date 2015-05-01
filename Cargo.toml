@@ -1,8 +1,10 @@
 [package]
 
 name = "http_parser"
+description = "Http request/response parser for rust"
 version = "0.0.1"
 authors = ["Minjie Zha <minjiezha@gmail.com>"]
+license = "MIT"
 
 [profile.dev]
 opt-level = 0
