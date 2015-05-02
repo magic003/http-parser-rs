@@ -3,7 +3,7 @@ extern crate http_parser;
 use self::http_parser::{HttpParser, HttpParserCallback, HttpParserType,
                         HttpErrno};
 
-mod helper;
+pub mod helper;
 
 const HEADER_LINE : &'static str = "header-key: header-value\r\n";
 

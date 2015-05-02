@@ -1,8 +1,8 @@
 extern crate http_parser;
 
-use http_parser::{HttpParser, HttpParserType, HttpParserCallback, HttpErrno};
+use http_parser::{HttpParser, HttpParserType, HttpErrno};
 
-mod helper;
+pub mod helper;
 
 macro_rules! content_length(
     ($len:expr) => (

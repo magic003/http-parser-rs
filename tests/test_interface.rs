@@ -9,7 +9,7 @@ fn test_interface() {
     struct Callback;
 
     impl HttpParserCallback for Callback {
-        fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
+        fn on_message_complete(&mut self, _ : &mut HttpParser) -> CallbackResult {
             Ok(CallbackDecision::Nothing)
         }
     }

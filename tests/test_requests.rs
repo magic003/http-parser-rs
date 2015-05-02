@@ -4,7 +4,7 @@ use std::default::Default;
 
 use http_parser::{HttpParser, HttpParserType, HttpErrno, HttpMethod, HttpVersion};
 
-mod helper;
+pub mod helper;
 
 #[test]
 fn test_requests() {

@@ -2,9 +2,9 @@ extern crate http_parser;
 
 use std::default::Default;
 
-use http_parser::{HttpParser, HttpParserType, HttpErrno, HttpVersion};
+use http_parser::{HttpParser, HttpParserType, HttpVersion};
 
-mod helper;
+pub mod helper;
 
 #[test]
 fn test_responses() {
@@ -768,14 +768,13 @@ fn test_message_count_body(msg: &helper::Message) {
     let mut cb = helper::CallbackCountBody{..Default::default()};
     cb.messages.push(helper::Message{..Default::default()});
 
-    let mut read : usize = 0;
     let len : usize = msg.raw.len();
     let chunk : usize = 4024;
 
     let mut i : usize = 0;
     while i < len {
         let toread : usize = std::cmp::min(len-i, chunk);
-        read = hp.execute(&mut cb, &msg.raw.as_bytes()[i .. i + toread]);
+        let read = hp.execute(&mut cb, &msg.raw.as_bytes()[i .. i + toread]);
         if read != toread {
             helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
             panic!();
@@ -785,7 +784,7 @@ fn test_message_count_body(msg: &helper::Message) {
     }
 
     cb.currently_parsing_eof = true;
-    read = hp.execute(&mut cb, &[]);
+    let read = hp.execute(&mut cb, &[]);
     if read != 0 {
         helper::print_error(hp.errno.unwrap(), msg.raw.as_bytes(), read);
         panic!();

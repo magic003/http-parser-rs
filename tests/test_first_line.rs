@@ -3,7 +3,7 @@ extern crate http_parser;
 
 use self::http_parser::{HttpParser, HttpParserType};
 
-mod helper;
+pub mod helper;
 
 #[test]
 fn test_request_line() {
