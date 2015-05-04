@@ -19,7 +19,7 @@ pub struct HttpParser {
     pub http_version: HttpVersion,
     pub errno : Option<HttpErrno>,
     pub status_code : Option<u16>,          // response only
-    pub method : HttpMethod,        // request only
+    pub method : Option<HttpMethod>,        // request only
 
     pub upgrade : bool,
     
@@ -295,7 +295,7 @@ impl HttpParser {
             http_version: HttpVersion { major: 1, minor: 0 },
             errno : Option::None,
             status_code : None,
-            method : HttpMethod::Get,
+            method : None,
             upgrade : false,
             strict: true,
         }
@@ -424,7 +424,7 @@ impl HttpParser {
                             }
 
                             self.tp = HttpParserType::Request;
-                            self.method = HttpMethod::Head;
+                            self.method = Some(HttpMethod::Head);
                             self.index = 2;
                             self.state = State::ReqMethod;
                         }
@@ -595,22 +595,22 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.method = HttpMethod::Delete;
+                            self.method = Some(HttpMethod::Delete);
                             self.index = 1;
                             match ch {
-                                b'C' => self.method = HttpMethod::Connect, // or Copy, Checkout
-                                b'D' => self.method = HttpMethod::Delete,
-                                b'G' => self.method = HttpMethod::Get,
-                                b'H' => self.method = HttpMethod::Head,
-                                b'L' => self.method = HttpMethod::Lock,
-                                b'M' => self.method = HttpMethod::MKCol, // or Move, MKActivity, Merge, MSearch, MKCalendar
-                                b'N' => self.method = HttpMethod::Notify,
-                                b'O' => self.method = HttpMethod::Options,
-                                b'P' => self.method = HttpMethod::Post, // or PropFind|PropPatch|Put|Patch|Purge
-                                b'R' => self.method = HttpMethod::Report,
-                                b'S' => self.method = HttpMethod::Subscribe, // or Search
-                                b'T' => self.method = HttpMethod::Trace,
-                                b'U' => self.method = HttpMethod::Unlock, // or Unsubscribe
+                                b'C' => self.method = Some(HttpMethod::Connect), // or Copy, Checkout
+                                b'D' => self.method = Some(HttpMethod::Delete),
+                                b'G' => self.method = Some(HttpMethod::Get),
+                                b'H' => self.method = Some(HttpMethod::Head),
+                                b'L' => self.method = Some(HttpMethod::Lock),
+                                b'M' => self.method = Some(HttpMethod::MKCol), // or Move, MKActivity, Merge, MSearch, MKCalendar
+                                b'N' => self.method = Some(HttpMethod::Notify),
+                                b'O' => self.method = Some(HttpMethod::Options),
+                                b'P' => self.method = Some(HttpMethod::Post), // or PropFind|PropPatch|Put|Patch|Purge
+                                b'R' => self.method = Some(HttpMethod::Report),
+                                b'S' => self.method = Some(HttpMethod::Subscribe), // or Search
+                                b'T' => self.method = Some(HttpMethod::Trace),
+                                b'U' => self.method = Some(HttpMethod::Unlock), // or Unsubscribe
                                 _ => {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -632,64 +632,64 @@ impl HttpParser {
                             return index;
                         }
 
-                        let matcher = self.method.to_string();
+                        let matcher = self.method.unwrap().to_string();
                         if ch == b' ' && self.index == matcher.len() {
                             self.state = State::ReqSpacesBeforeUrl;
                         } else if self.index < matcher.len() && ch == (matcher[self.index ..].bytes().next().unwrap()) {
                             ;
-                        } else if self.method == HttpMethod::Connect {
+                        } else if self.method == Some(HttpMethod::Connect) {
                             if self.index == 1 && ch == b'H' {
-                                self.method = HttpMethod::Checkout;
+                                self.method = Some(HttpMethod::Checkout);
                             } else if self.index == 2 && ch == b'P' {
-                                self.method = HttpMethod::Copy;
+                                self.method = Some(HttpMethod::Copy);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == HttpMethod::MKCol {
+                        } else if self.method == Some(HttpMethod::MKCol) {
                             if self.index == 1 && ch == b'O' {
-                                self.method = HttpMethod::Move;
+                                self.method = Some(HttpMethod::Move);
                             } else if self.index == 1 && ch == b'E' {
-                                self.method = HttpMethod::Merge;
+                                self.method = Some(HttpMethod::Merge);
                             } else if self.index == 1 && ch == b'-' {
-                                self.method = HttpMethod::MSearch;
+                                self.method = Some(HttpMethod::MSearch);
                             } else if self.index == 2 && ch == b'A' {
-                                self.method = HttpMethod::MKActivity;
+                                self.method = Some(HttpMethod::MKActivity);
                             } else if self.index == 3 && ch == b'A' {
-                                self.method = HttpMethod::MKCalendar;
+                                self.method = Some(HttpMethod::MKCalendar);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == HttpMethod::Subscribe {
+                        } else if self.method == Some(HttpMethod::Subscribe) {
                             if self.index == 1 && ch == b'E' {
-                                self.method = HttpMethod::Search;
+                                self.method = Some(HttpMethod::Search);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 1 && self.method == HttpMethod::Post {
+                        } else if self.index == 1 && self.method == Some(HttpMethod::Post) {
                            if ch == b'R' {
-                               self.method = HttpMethod::PropFind; // or PropPatch
+                               self.method = Some(HttpMethod::PropFind); // or PropPatch
                            } else if ch == b'U' {
-                               self.method = HttpMethod::Put; // or Purge
+                               self.method = Some(HttpMethod::Put); // or Purge
                            } else if ch == b'A' {
-                               self.method = HttpMethod::Patch;
+                               self.method = Some(HttpMethod::Patch);
                            } else {
                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                return index;
                            }
                         } else if self.index == 2 {
-                            if self.method == HttpMethod::Put {
+                            if self.method == Some(HttpMethod::Put) {
                                 if ch == b'R' {
-                                    self.method = HttpMethod::Purge;
+                                    self.method = Some(HttpMethod::Purge);
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 }
-                            } else if self.method == HttpMethod::Unlock {
+                            } else if self.method == Some(HttpMethod::Unlock) {
                                 if ch == b'S' {
-                                    self.method = HttpMethod::Unsubscribe;
+                                    self.method = Some(HttpMethod::Unsubscribe);
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -698,8 +698,8 @@ impl HttpParser {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 4 && self.method == HttpMethod::PropFind && ch == b'P' {
-                            self.method = HttpMethod::PropPatch;
+                        } else if self.index == 4 && self.method == Some(HttpMethod::PropFind) && ch == b'P' {
+                            self.method = Some(HttpMethod::PropPatch);
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidMethod);
                             return index;
@@ -710,7 +710,7 @@ impl HttpParser {
                     State::ReqSpacesBeforeUrl => {
                         if ch != b' ' {
                             mark!(url_mark, index);
-                            if self.method == HttpMethod::Connect {
+                            if self.method == Some(HttpMethod::Connect) {
                                 self.state = State::ReqServerStart;
                             }
 
@@ -1216,7 +1216,7 @@ impl HttpParser {
                             // Set this here so that on_headers_complete()
                             // callbacks can see it
                             self.upgrade = (self.flags & Flags::Upgrade.as_u8() != 0) ||
-                                self.method == HttpMethod::Connect;
+                                self.method == Some(HttpMethod::Connect);
 
                             // Here we call the headers_complete callback. This is somewhat
                             // different than other callbacks because if the user returns 1, we
