@@ -31,7 +31,7 @@ fn test_responses() {
                 </BODY></HTML>\r\n".to_string(),
             should_keep_alive: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 301,
+            status_code: Some(301),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "Moved Permanently".as_bytes() {
@@ -80,7 +80,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -114,7 +114,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 404,
+            status_code: Some(404),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "Not Found".as_bytes() {
@@ -135,7 +135,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 301,
+            status_code: Some(301),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     // FIXME no need to push?
@@ -167,7 +167,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -196,7 +196,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -225,7 +225,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -254,7 +254,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -289,7 +289,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
-            status_code: 301,
+            status_code: Some(301),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "Moved Permanently".as_bytes() {
@@ -332,7 +332,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v: Vec<u8> = Vec::new();
                     for b in "OK".as_bytes() {
@@ -368,7 +368,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 500,
+            status_code: Some(500),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "Oriëntatieprobleem".as_bytes() {
@@ -393,7 +393,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 0, minor: 9 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -417,7 +417,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -441,7 +441,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 0 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -466,7 +466,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
-            status_code: 204,
+            status_code: Some(204),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "No content".as_bytes() {
@@ -490,7 +490,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -513,7 +513,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 204,
+            status_code: Some(204),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "No content".as_bytes() {
@@ -537,7 +537,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 204,
+            status_code: Some(204),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "No content".as_bytes() {
@@ -564,7 +564,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -597,7 +597,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "OK".as_bytes() {
@@ -640,7 +640,7 @@ fn test_responses() {
             should_keep_alive: true,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 301,
+            status_code: Some(301),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 for b in "MovedPermanently".as_bytes() {
@@ -671,7 +671,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: true,
             http_version: HttpVersion { major: 1, minor: 1 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                 let mut v: Vec<u8> = Vec::new();
                 // FIXME no need to push?
@@ -731,7 +731,7 @@ fn test_responses() {
             should_keep_alive: false,
             message_complete_on_eof: false,
             http_version: HttpVersion { major: 1, minor: 0 },
-            status_code: 200,
+            status_code: Some(200),
             response_status: {
                     let mut v = Vec::new();
                     for b in "OK".as_bytes() {

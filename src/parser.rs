@@ -18,7 +18,7 @@ pub enum HttpParserType {
 pub struct HttpParser {
     pub http_version: HttpVersion,
     pub errno : Option<HttpErrno>,
-    pub status_code : u16,          // response only
+    pub status_code : Option<u16>,          // response only
     pub method : HttpMethod,        // request only
 
     pub upgrade : bool,
@@ -294,7 +294,7 @@ impl HttpParser {
             content_length: ULLONG_MAX,
             http_version: HttpVersion { major: 1, minor: 0 },
             errno : Option::None,
-            status_code : 0,
+            status_code : None,
             method : HttpMethod::Get,
             upgrade : false,
             strict: true,
@@ -526,7 +526,7 @@ impl HttpParser {
                                 return index;
                             }
                         } else {
-                            self.status_code = (ch - b'0') as u16;
+                            self.status_code = Some((ch - b'0') as u16);
                             self.state = State::ResStatusCode;
                         }
                     },
@@ -542,10 +542,12 @@ impl HttpParser {
                                 }
                             }
                         } else {
-                            self.status_code *= 10;
-                            self.status_code += (ch - b'0') as u16;
+                            let mut status_code = self.status_code.unwrap_or(0);
+                            status_code *= 10;
+                            status_code += (ch - b'0') as u16;
+                            self.status_code = Some(status_code);
 
-                            if self.status_code > 999 {
+                            if status_code > 999 {
                                 self.errno = Option::Some(HttpErrno::InvalidStatus);
                                 return index;
                             }
@@ -1624,10 +1626,11 @@ impl HttpParser {
             return false
         }
 
+        let status_code = self.status_code.unwrap_or(0);
         // See RFC 2616 section 4.4
-        if self.status_code / 100 == 1 || // 1xx e.g. Continue
-            self.status_code == 204 ||    // No Content
-            self.status_code == 304 ||    // Not Modified
+        if status_code / 100 == 1 || // 1xx e.g. Continue
+            status_code == 204 ||    // No Content
+            status_code == 304 ||    // Not Modified
             (self.flags & Flags::SkipBody.as_u8()) != 0 {// response to a HEAD request
             return false
         }
