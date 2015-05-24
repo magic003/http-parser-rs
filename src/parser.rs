@@ -23,6 +23,7 @@ pub struct HttpParser {
 
     pub upgrade : bool,
     
+    // TODO make it as a parameter?
     pub strict : bool,      // parsing using strict rules
 
     // private
@@ -294,8 +295,8 @@ impl HttpParser {
             content_length: ULLONG_MAX,
             http_version: HttpVersion { major: 1, minor: 0 },
             errno : Option::None,
-            status_code : None,
-            method : None,
+            status_code : Option::None,
+            method : Option::None,
             upgrade : false,
             strict: true,
         }
@@ -330,7 +331,7 @@ impl HttpParser {
                 State::StartReq | 
                 State::StartRes => {
                     return 0;
-                }
+                },
                 _ => {
                    self.errno = Option::Some(HttpErrno::InvalidEofState);
                    return 1;
@@ -361,7 +362,7 @@ impl HttpParser {
         }
 
         while index < len {
-            let ch = data[index as usize];
+            let ch = data[index];
             if self.state <= State::HeadersDone {
                 self.nread += 1;
 
