@@ -334,6 +334,7 @@ impl HttpParser {
                 },
                 _ => {
                    self.errno = Option::Some(HttpErrno::InvalidEofState);
+                   // TODO why 1? return 0 instead?
                    return 1;
                 }
             }
@@ -404,6 +405,7 @@ impl HttpParser {
                                 assert_ok!(self);
                                 callback!(self, cb.on_message_begin(self),
                                     HttpErrno::CBMessageBegin);
+                                // TODO use a macro for error check
                                 if self.errno.is_some() {
                                     return index+1;
                                 }
@@ -467,7 +469,7 @@ impl HttpParser {
                         self.state = State::ResFirstHttpMajor;
                     },
                     State::ResFirstHttpMajor => {
-                        if ch < b'0' || ch > b'9' {
+                        if !is_num(ch) {
                             self.errno = Option::Some(HttpErrno::InvalidVersion);
                             return index;
                         }
@@ -566,15 +568,8 @@ impl HttpParser {
                         }
                     },
                     State::ResStatus => {
-                        if ch == CR {
-                            self.state = State::ResLineAlmostDone;
-                            assert_ok!(self);
-                            callback_data!(self, status_mark,
-                                cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBStatus, index+1);
-                            status_mark = None;
-                        } else if ch == LF {
-                            self.state = State::HeaderFieldStart;
+                        if ch == CR || ch == LF {
+                            self.state = if ch == CR { State::ResLineAlmostDone } else { State::HeaderFieldStart };
                             assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
@@ -596,8 +591,6 @@ impl HttpParser {
                                 return index;
                             }
 
-                            self.method = Some(HttpMethod::Delete);
-                            self.index = 1;
                             match ch {
                                 b'C' => self.method = Some(HttpMethod::Connect), // or Copy, Checkout
                                 b'D' => self.method = Some(HttpMethod::Delete),
@@ -617,6 +610,7 @@ impl HttpParser {
                                     return index;
                                 },
                             }
+                            self.index = 1;
                             self.state = State::ReqMethod;
 
                             assert_ok!(self);
@@ -628,11 +622,6 @@ impl HttpParser {
                         }
                     },
                     State::ReqMethod => {
-                        if index == len {
-                            self.errno = Option::Some(HttpErrno::InvalidMethod);
-                            return index;
-                        }
-
                         let matcher = self.method.unwrap().to_string();
                         if ch == b' ' && self.index == matcher.len() {
                             self.state = State::ReqSpacesBeforeUrl;
@@ -994,7 +983,7 @@ impl HttpParser {
                                     }
                                 },
                                 _ => {
-                                    assert!(false, "Unknown header_state");
+                                    panic!("Unknown header_state");
                                 }
                             }
                         } else if ch == b':' {
@@ -1085,7 +1074,7 @@ impl HttpParser {
                             match self.header_state {
                                 HeaderState::General => (),
                                 HeaderState::Connection | HeaderState::TransferEncoding => {
-                                    assert!(false, "Shouldn't get here.");
+                                    panic!("Shouldn't get here.");
                                 },
                                 HeaderState::ContentLength => {
                                     if ch != b' ' {
@@ -1249,7 +1238,7 @@ impl HttpParser {
                         strict_check!(self, ch != LF, index);
                         self.nread = 0;
 
-                        // Exit, The rest of the connect is in a different protocal
+                        // Exit, The rest of the connect is in a different protocol
                         if self.upgrade {
                             self.state = new_message!(self);
                             assert_ok!(self);
