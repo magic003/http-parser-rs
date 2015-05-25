@@ -39,14 +39,6 @@ pub struct HttpParser {
 
 //============== End of public interfaces ===================
 
-macro_rules! ensure_error(
-    ($parser:ident) => (
-        if $parser.errno.is_none() {
-            $parser.errno = Option::Some(HttpErrno::Unknown);
-        }
-    );
-);
-
 macro_rules! assert_ok(
     ($parser:ident) => (
         assert!($parser.errno.is_none());
