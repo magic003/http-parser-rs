@@ -39,14 +39,9 @@ pub struct HttpParser {
 
 //============== End of public interfaces ===================
 
-macro_rules! assert_ok(
-    ($parser:ident) => (
-        assert!($parser.errno.is_none());
-    );
-);
-
 macro_rules! callback(
     ($parser:ident, $cb:expr, $err:expr) => (
+       assert!($parser.errno.is_none());
        match $cb {
            Err(..) => $parser.errno = Option::Some($err),
            _ => (),
@@ -56,6 +51,7 @@ macro_rules! callback(
 
 macro_rules! callback_data(
     ($parser:ident, $mark:ident, $cb:expr, $err:expr, $idx:expr) => (
+        assert!($parser.errno.is_none());
         if $mark.is_some() {
             match $cb {
                 Err(..) => $parser.errno = Option::Some($err),
@@ -310,7 +306,6 @@ impl HttpParser {
         if len == 0 {    // mean EOF
             match self.state {
                 State::BodyIdentityEof => {
-                    assert_ok!(self);
                     callback!(self, cb.on_message_complete(self), 
                               HttpErrno::CBMessageComplete);
                     if self.errno.is_some() {
@@ -394,7 +389,6 @@ impl HttpParser {
 
                             if ch == b'H' {
                                 self.state = State::ResOrRespH;
-                                assert_ok!(self);
                                 callback!(self, cb.on_message_begin(self),
                                     HttpErrno::CBMessageBegin);
                                 // TODO use a macro for error check
@@ -437,7 +431,6 @@ impl HttpParser {
                             },
                         }
                         
-                        assert_ok!(self);
                         callback!(self, cb.on_message_begin(self), 
                                   HttpErrno::CBMessageBegin);
                         if self.errno.is_some() {
@@ -562,7 +555,6 @@ impl HttpParser {
                     State::ResStatus => {
                         if ch == CR || ch == LF {
                             self.state = if ch == CR { State::ResLineAlmostDone } else { State::HeaderFieldStart };
-                            assert_ok!(self);
                             callback_data!(self, status_mark,
                                 cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBStatus, index+1);
@@ -605,7 +597,6 @@ impl HttpParser {
                             self.index = 1;
                             self.state = State::ReqMethod;
 
-                            assert_ok!(self);
                             callback!(self, cb.on_message_begin(self), 
                                       HttpErrno::CBMessageBegin);
                             if self.errno.is_some() {
@@ -732,7 +723,6 @@ impl HttpParser {
                         match ch {
                             b' ' => {
                                 self.state = State::ReqHttpStart;
-                                assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBUrl, index+1);
@@ -746,7 +736,6 @@ impl HttpParser {
                                 } else {
                                     State::HeaderFieldStart
                                 };
-                                assert_ok!(self);
                                 callback_data!(self, url_mark,
                                     cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBUrl, index+1);
@@ -980,7 +969,6 @@ impl HttpParser {
                             }
                         } else if ch == b':' {
                             self.state = State::HeaderValueDiscardWs;
-                            assert_ok!(self);
                             callback_data!(self, header_field_mark,
                                 cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderField, index+1);
@@ -1047,14 +1035,12 @@ impl HttpParser {
                     State::HeaderValue => {
                         if ch == CR {
                             self.state = State::HeaderAlmostDone;
-                            assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index+1);
                             header_value_mark = None;
                         } else if ch == LF {
                             self.state = State::HeaderAlmostDone;
-                            assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index);
@@ -1172,7 +1158,6 @@ impl HttpParser {
                             // header value was empty
                             mark!(header_value_mark, index);
                             self.state = State::HeaderFieldStart;
-                            assert_ok!(self);
                             callback_data!(self, header_value_mark,
                                 cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBHeaderValue, index);
@@ -1186,7 +1171,6 @@ impl HttpParser {
                         if (self.flags & Flags::Trailing.as_u8()) > 0 {
                             // End of a chunked request
                             self.state = new_message!(self);
-                            assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete);
                             if self.errno.is_some() {
@@ -1233,7 +1217,6 @@ impl HttpParser {
                         // Exit, The rest of the connect is in a different protocol
                         if self.upgrade {
                             self.state = new_message!(self);
-                            assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete);
                             if self.errno.is_some() {
@@ -1244,7 +1227,6 @@ impl HttpParser {
 
                         if (self.flags & Flags::SkipBody.as_u8()) != 0 {
                             self.state = new_message!(self);
-                            assert_ok!(self);
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete);
                             if self.errno.is_some() {
@@ -1257,7 +1239,6 @@ impl HttpParser {
                             if self.content_length == 0 {
                                 // Content-Length header given but zero: Content-Length: 0\r\n
                                 self.state = new_message!(self);
-                                assert_ok!(self);
                                 callback!(self, cb.on_message_complete(self), 
                                           HttpErrno::CBMessageComplete);
                                 if self.errno.is_some() {
@@ -1271,7 +1252,6 @@ impl HttpParser {
                                     !self.http_message_needs_eof() {
                                     // Assume content-length 0 - read the next
                                     self.state = new_message!(self);
-                                    assert_ok!(self);
                                     callback!(self, cb.on_message_complete(self), 
                                               HttpErrno::CBMessageComplete);
                                     if self.errno.is_some() {
@@ -1310,7 +1290,6 @@ impl HttpParser {
                             // harness to distinguish between complete-on-EOF and
                             // complete-on-length. It's not clear that this distinction is
                             // important for applications, but let's keep it for now.
-                            assert_ok!(self);
                             callback_data!(self, body_mark,
                                 cb.on_body(self, &data[body_mark.unwrap() as usize .. (index + 1) as usize]),
                                 HttpErrno::CBBody, index);
@@ -1325,7 +1304,6 @@ impl HttpParser {
                     },
                     State::MessageDone => {
                         self.state = new_message!(self);
-                        assert_ok!(self);
                         callback!(self, cb.on_message_complete(self), 
                                   HttpErrno::CBMessageComplete);
                         if self.errno.is_some() {
@@ -1417,7 +1395,6 @@ impl HttpParser {
                         strict_check!(self, ch != CR, index);
                         self.state = State::ChunkDataDone;
 
-                        assert_ok!(self);
                         callback_data!(self, body_mark,
                             cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
                             HttpErrno::CBBody, index+1);
