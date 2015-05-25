@@ -12,29 +12,29 @@ use callback::{HttpParserCallback, CallbackDecision};
 pub enum HttpParserType {
     Request,
     Response,
-    Both,
+    Both
 }
 
 pub struct HttpParser {
     pub http_version: HttpVersion,
-    pub errno : Option<HttpErrno>,
-    pub status_code : Option<u16>,          // response only
-    pub method : Option<HttpMethod>,        // request only
+    pub errno: Option<HttpErrno>,
+    pub status_code: Option<u16>,          // response only
+    pub method: Option<HttpMethod>,        // request only
 
-    pub upgrade : bool,
+    pub upgrade: bool,
     
-    // TODO make it as a parameter?
-    pub strict : bool,      // parsing using strict rules
+    // TODO make it as a constructor parameter?
+    pub strict: bool,      // parsing using strict rules
 
     // private
-    tp : HttpParserType,
-    state : State,
-    header_state : HeaderState,
-    flags : u8,
-    index : usize,             // index into current matcher
+    tp: HttpParserType,
+    state: State,
+    header_state: HeaderState,
+    flags: u8,
+    index: usize,             // index into current matcher
 
-    nread : usize,            // bytes read in various scenarios
-    content_length : u64,   // bytes in body (0 if no Content-Length header)
+    nread: usize,            // bytes read in various scenarios
+    content_length: u64,   // bytes in body (0 if no Content-Length header)
 }
 
 //============== End of public interfaces ===================
