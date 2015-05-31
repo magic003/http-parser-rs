@@ -10,7 +10,7 @@ fn test_interface() {
 
     impl HttpParserCallback for Callback {
         fn on_message_complete(&mut self, _ : &mut HttpParser) -> CallbackResult {
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 

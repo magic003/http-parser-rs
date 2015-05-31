@@ -4,7 +4,7 @@ pub use self::parser::{HttpParser, HttpParserType};
 pub use self::http_version::HttpVersion;
 pub use self::error::HttpErrno;
 pub use self::http_method::HttpMethod;
-pub use self::callback::{HttpParserCallback, CallbackResult, CallbackDecision};
+pub use self::callback::{HttpParserCallback, CallbackResult, ParseAction};
 
 mod parser;
 mod http_version;

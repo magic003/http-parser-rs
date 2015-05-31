@@ -105,21 +105,21 @@ impl Default for CallbackRegular {
 impl HttpParserCallback for CallbackRegular {
     fn on_message_begin(&mut self, _ : &mut HttpParser) -> CallbackResult {
         self.messages[self.num_messages].message_begin_cb_called = true;
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_url(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
         for b in data {
             self.messages[self.num_messages].request_url.push(*b);
         }
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_status(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
         for b in data {
             self.messages[self.num_messages].response_status.push(*b);
         }
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_header_field(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -140,7 +140,7 @@ impl HttpParserCallback for CallbackRegular {
 
         m.last_header_element = LastHeaderType::Field;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_header_value(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -156,7 +156,7 @@ impl HttpParserCallback for CallbackRegular {
 
         m.last_header_element = LastHeaderType::Value;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
@@ -166,7 +166,7 @@ impl HttpParserCallback for CallbackRegular {
         m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -187,7 +187,7 @@ impl HttpParserCallback for CallbackRegular {
         }
 
         m.body_is_final = parser.http_body_is_final();
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
@@ -214,7 +214,7 @@ impl HttpParserCallback for CallbackRegular {
         self.messages.push(Message{..Default::default()});
         self.num_messages += 1;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 }
 
@@ -289,7 +289,7 @@ impl HttpParserCallback for CallbackPause {
             parser.pause(true);
             self.paused = true;
             self.messages[self.num_messages].message_begin_cb_called = true;
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -302,7 +302,7 @@ impl HttpParserCallback for CallbackPause {
             for b in data {
                 self.messages[self.num_messages].request_url.push(*b);
             }
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -315,7 +315,7 @@ impl HttpParserCallback for CallbackPause {
             for b in data {
                 self.messages[self.num_messages].response_status.push(*b);
             }
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -342,7 +342,7 @@ impl HttpParserCallback for CallbackPause {
 
             m.last_header_element = LastHeaderType::Field;
 
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -364,7 +364,7 @@ impl HttpParserCallback for CallbackPause {
 
             m.last_header_element = LastHeaderType::Value;
 
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -380,7 +380,7 @@ impl HttpParserCallback for CallbackPause {
             m.http_version = parser.http_version;
             m.headers_complete_cb_called = true;
             m.should_keep_alive = parser.http_should_keep_alive();
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -407,7 +407,7 @@ impl HttpParserCallback for CallbackPause {
             }
 
             m.body_is_final = parser.http_body_is_final();
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 
@@ -440,7 +440,7 @@ impl HttpParserCallback for CallbackPause {
             self.messages.push(Message{..Default::default()});
             self.num_messages += 1;
 
-            Ok(CallbackDecision::Nothing)
+            Ok(ParseAction::None)
         }
     }
 }
@@ -465,21 +465,21 @@ impl Default for CallbackCountBody {
 impl HttpParserCallback for CallbackCountBody {
     fn on_message_begin(&mut self, _ : &mut HttpParser) -> CallbackResult {
         self.messages[self.num_messages].message_begin_cb_called = true;
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_url(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
         for b in data {
             self.messages[self.num_messages].request_url.push(*b);
         }
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_status(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
         for b in data {
             self.messages[self.num_messages].response_status.push(*b);
         }
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_header_field(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -500,7 +500,7 @@ impl HttpParserCallback for CallbackCountBody {
 
         m.last_header_element = LastHeaderType::Field;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_header_value(&mut self, _ : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -516,7 +516,7 @@ impl HttpParserCallback for CallbackCountBody {
 
         m.last_header_element = LastHeaderType::Value;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_headers_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
@@ -526,7 +526,7 @@ impl HttpParserCallback for CallbackCountBody {
         m.http_version = parser.http_version;
         m.headers_complete_cb_called = true;
         m.should_keep_alive = parser.http_should_keep_alive();
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_body(&mut self, parser : &mut HttpParser, data : &[u8]) -> CallbackResult {
@@ -541,7 +541,7 @@ impl HttpParserCallback for CallbackCountBody {
         }
 
         m.body_is_final = parser.http_body_is_final();
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 
     fn on_message_complete(&mut self, parser : &mut HttpParser) -> CallbackResult {
@@ -568,7 +568,7 @@ impl HttpParserCallback for CallbackCountBody {
         self.messages.push(Message{..Default::default()});
         self.num_messages += 1;
 
-        Ok(CallbackDecision::Nothing)
+        Ok(ParseAction::None)
     }
 }
 pub fn print_error(errno: HttpErrno, raw: &[u8], error_location: usize) {
