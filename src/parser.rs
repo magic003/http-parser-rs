@@ -308,9 +308,6 @@ impl HttpParser {
                 State::BodyIdentityEof => {
                     callback!(self, cb.on_message_complete(self), 
                               HttpErrno::CBMessageComplete);
-                    if self.errno.is_some() {
-                        return index;
-                    }
                     return 0;
                 },
                 State::Dead | 
@@ -321,8 +318,9 @@ impl HttpParser {
                 },
                 _ => {
                    self.errno = Option::Some(HttpErrno::InvalidEofState);
-                   // TODO why 1? return 0 instead?
-                   return 1;
+                   // This is from parser.c, but it doesn't make sense to me.
+                   // return 1;
+                   return 0;
                 }
             }
         }
@@ -351,6 +349,7 @@ impl HttpParser {
 
         while index < len {
             let ch = data[index];
+            // TODO create parsing_header macro
             if self.state <= State::HeadersDone {
                 self.nread += 1;
 
