@@ -40,28 +40,16 @@ pub struct HttpParser {
 //============== End of public interfaces ===================
 
 macro_rules! callback(
-    ($parser:ident, $cb:expr, $err:expr) => (
+    ($parser:ident, $cb:expr, $err:expr, $idx:expr) => (
        assert!($parser.errno.is_none());
        match $cb {
            Err(..) => $parser.errno = Option::Some($err),
            _ => (),
        }
-    );
-);
 
-macro_rules! callback_data(
-    ($parser:ident, $mark:ident, $cb:expr, $err:expr, $idx:expr) => (
-        assert!($parser.errno.is_none());
-        if $mark.is_some() {
-            match $cb {
-                Err(..) => $parser.errno = Option::Some($err),
-                _ => (),
-            }
-
-            if $parser.errno.is_some() {
-                return $idx;
-            }
-        }
+       if $parser.errno.is_some() {
+           return $idx;
+       }
     );
 );
 
@@ -307,7 +295,7 @@ impl HttpParser {
             match self.state {
                 State::BodyIdentityEof => {
                     callback!(self, cb.on_message_complete(self), 
-                              HttpErrno::CBMessageComplete);
+                              HttpErrno::CBMessageComplete, index);
                     return 0;
                 },
                 State::Dead | 
@@ -389,11 +377,7 @@ impl HttpParser {
                             if ch == b'H' {
                                 self.state = State::ResOrRespH;
                                 callback!(self, cb.on_message_begin(self),
-                                    HttpErrno::CBMessageBegin);
-                                // TODO use a macro for error check
-                                if self.errno.is_some() {
-                                    return index+1;
-                                }
+                                    HttpErrno::CBMessageBegin, index+1);
                             } else {
                                 self.tp = HttpParserType::Request;
                                 self.state = State::StartReq;
@@ -431,10 +415,7 @@ impl HttpParser {
                         }
                         
                         callback!(self, cb.on_message_begin(self), 
-                                  HttpErrno::CBMessageBegin);
-                        if self.errno.is_some() {
-                            return index+1;
-                        }
+                                  HttpErrno::CBMessageBegin, index+1);
                     },
                     State::ResH => {
                         strict_check!(self, ch != b'T', index);                       
@@ -554,10 +535,12 @@ impl HttpParser {
                     State::ResStatus => {
                         if ch == CR || ch == LF {
                             self.state = if ch == CR { State::ResLineAlmostDone } else { State::HeaderFieldStart };
-                            callback_data!(self, status_mark,
-                                cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBStatus, index+1);
-                            status_mark = None;
+                            if status_mark.is_some() {
+                                callback!(self,
+                                    cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
+                                    HttpErrno::CBStatus, index+1);
+                                status_mark = None;
+                            }
                         }
                     },
                     State::ResLineAlmostDone => {
@@ -597,10 +580,7 @@ impl HttpParser {
                             self.state = State::ReqMethod;
 
                             callback!(self, cb.on_message_begin(self), 
-                                      HttpErrno::CBMessageBegin);
-                            if self.errno.is_some() {
-                                return index+1;
-                            }
+                                      HttpErrno::CBMessageBegin, index+1);
                         }
                     },
                     State::ReqMethod => {
@@ -722,10 +702,12 @@ impl HttpParser {
                         match ch {
                             b' ' => {
                                 self.state = State::ReqHttpStart;
-                                callback_data!(self, url_mark,
-                                    cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
-                                    HttpErrno::CBUrl, index+1);
-                                url_mark = None;
+                                if url_mark.is_some() {
+                                    callback!(self,
+                                        cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
+                                        HttpErrno::CBUrl, index+1);
+                                    url_mark = None;
+                                }
                             },
                             CR | LF => {
                                 self.http_version.major = 0;
@@ -735,10 +717,12 @@ impl HttpParser {
                                 } else {
                                     State::HeaderFieldStart
                                 };
-                                callback_data!(self, url_mark,
-                                    cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
-                                    HttpErrno::CBUrl, index+1);
-                                url_mark = None;
+                                if url_mark.is_some() {
+                                    callback!(self,
+                                        cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
+                                        HttpErrno::CBUrl, index+1);
+                                    url_mark = None;
+                                }
                             },
                             _ => {
                                 self.state = HttpParser::parse_url_char(self, self.state, ch);
@@ -968,10 +952,12 @@ impl HttpParser {
                             }
                         } else if ch == b':' {
                             self.state = State::HeaderValueDiscardWs;
-                            callback_data!(self, header_field_mark,
-                                cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBHeaderField, index+1);
-                            header_field_mark = None;
+                            if header_field_mark.is_some() {
+                                callback!(self,
+                                    cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
+                                    HttpErrno::CBHeaderField, index+1);
+                                header_field_mark = None;
+                            }
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
                             return index;
@@ -1034,16 +1020,20 @@ impl HttpParser {
                     State::HeaderValue => {
                         if ch == CR {
                             self.state = State::HeaderAlmostDone;
-                            callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBHeaderValue, index+1);
-                            header_value_mark = None;
+                            if header_value_mark.is_some() {
+                                callback!(self,
+                                    cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
+                                    HttpErrno::CBHeaderValue, index+1);
+                                header_value_mark = None;
+                            }
                         } else if ch == LF {
                             self.state = State::HeaderAlmostDone;
-                            callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBHeaderValue, index);
-                            header_value_mark = None;
+                            if header_value_mark.is_some() {
+                                callback!(self,
+                                    cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
+                                    HttpErrno::CBHeaderValue, index);
+                                header_value_mark = None;
+                            }
                             retry = true;
                         } else {
                             let c : u8 = lower(ch);
@@ -1157,10 +1147,12 @@ impl HttpParser {
                             // header value was empty
                             mark!(header_value_mark, index);
                             self.state = State::HeaderFieldStart;
-                            callback_data!(self, header_value_mark,
-                                cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
-                                HttpErrno::CBHeaderValue, index);
-                            header_value_mark = None;
+                            if header_value_mark.is_some() {
+                                callback!(self,
+                                    cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
+                                    HttpErrno::CBHeaderValue, index);
+                                header_value_mark = None;
+                            }
                             retry = true;
                         }
                     },
@@ -1171,10 +1163,7 @@ impl HttpParser {
                             // End of a chunked request
                             self.state = new_message!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      HttpErrno::CBMessageComplete);
-                            if self.errno.is_some() {
-                                return index+1;
-                            }
+                                      HttpErrno::CBMessageComplete, index+1);
                         } else {
                             self.state = State::HeadersDone;
 
@@ -1217,20 +1206,14 @@ impl HttpParser {
                         if self.upgrade {
                             self.state = new_message!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      HttpErrno::CBMessageComplete);
-                            if self.errno.is_some() {
-                                return index+1;
-                            }
+                                      HttpErrno::CBMessageComplete, index+1);
                             return index+1;
                         }
 
                         if (self.flags & Flags::SkipBody.as_u8()) != 0 {
                             self.state = new_message!(self);
                             callback!(self, cb.on_message_complete(self), 
-                                      HttpErrno::CBMessageComplete);
-                            if self.errno.is_some() {
-                                return index+1;
-                            }
+                                      HttpErrno::CBMessageComplete, index+1);
                         } else if (self.flags & Flags::Chunked.as_u8()) != 0 {
                             // chunked encoding - ignore Content-Length header
                             self.state = State::ChunkSizeStart;
@@ -1239,10 +1222,7 @@ impl HttpParser {
                                 // Content-Length header given but zero: Content-Length: 0\r\n
                                 self.state = new_message!(self);
                                 callback!(self, cb.on_message_complete(self), 
-                                          HttpErrno::CBMessageComplete);
-                                if self.errno.is_some() {
-                                    return index+1;
-                                }
+                                          HttpErrno::CBMessageComplete, index+1);
                             } else if self.content_length != ULLONG_MAX {
                                 // Content-Length header given and non-zero
                                 self.state = State::BodyIdentity;
@@ -1252,10 +1232,7 @@ impl HttpParser {
                                     // Assume content-length 0 - read the next
                                     self.state = new_message!(self);
                                     callback!(self, cb.on_message_complete(self), 
-                                              HttpErrno::CBMessageComplete);
-                                    if self.errno.is_some() {
-                                        return index+1;
-                                    }
+                                              HttpErrno::CBMessageComplete, index+1);
                                 } else {
                                     // Read body until EOF
                                     self.state = State::BodyIdentityEof;
@@ -1289,10 +1266,12 @@ impl HttpParser {
                             // harness to distinguish between complete-on-EOF and
                             // complete-on-length. It's not clear that this distinction is
                             // important for applications, but let's keep it for now.
-                            callback_data!(self, body_mark,
-                                cb.on_body(self, &data[body_mark.unwrap() as usize .. (index + 1) as usize]),
-                                HttpErrno::CBBody, index);
-                            body_mark = None;
+                            if body_mark.is_some() {
+                                callback!(self,
+                                    cb.on_body(self, &data[body_mark.unwrap() as usize .. (index + 1) as usize]),
+                                    HttpErrno::CBBody, index);
+                                body_mark = None;
+                            }
                             retry = true;
                         }
                     },
@@ -1304,10 +1283,7 @@ impl HttpParser {
                     State::MessageDone => {
                         self.state = new_message!(self);
                         callback!(self, cb.on_message_complete(self), 
-                                  HttpErrno::CBMessageComplete);
-                        if self.errno.is_some() {
-                            return index+1;
-                        }
+                                  HttpErrno::CBMessageComplete, index+1);
                     },
                     State::ChunkSizeStart => {
                         assert!(self.nread == 1);
@@ -1394,10 +1370,12 @@ impl HttpParser {
                         strict_check!(self, ch != CR, index);
                         self.state = State::ChunkDataDone;
 
-                        callback_data!(self, body_mark,
-                            cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
-                            HttpErrno::CBBody, index+1);
-                        body_mark = None;
+                        if body_mark.is_some() {
+                            callback!(self,
+                                cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
+                                HttpErrno::CBBody, index+1);
+                            body_mark = None;
+                        }
                     },
                     State::ChunkDataDone => {
                         assert!(self.flags & Flags::Chunked.as_u8() != 0);
@@ -1433,21 +1411,31 @@ impl HttpParser {
                 (if body_mark.is_some() { 1 } else { 0 }) +
                 (if status_mark.is_some() { 1 } else { 0 }) <= 1);
 
-        callback_data!(self, header_field_mark,
-            cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
-            HttpErrno::CBHeaderField, index);
-        callback_data!(self, header_value_mark,
-            cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
-            HttpErrno::CBHeaderValue, index);
-        callback_data!(self, url_mark,
-            cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
-            HttpErrno::CBUrl, index);
-        callback_data!(self, body_mark,
-            cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
-            HttpErrno::CBBody, index);
-        callback_data!(self, status_mark,
-            cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
-            HttpErrno::CBStatus, index);
+        if header_field_mark.is_some() {
+            callback!(self,
+                cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
+                HttpErrno::CBHeaderField, index);
+        }
+        if header_value_mark.is_some() {
+            callback!(self,
+                cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
+                HttpErrno::CBHeaderValue, index);
+        }
+        if url_mark.is_some() {
+            callback!(self,
+                cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
+                HttpErrno::CBUrl, index);
+        }
+        if body_mark.is_some() {
+            callback!(self,
+                cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
+                HttpErrno::CBBody, index);
+        }
+        if status_mark.is_some() {
+            callback!(self,
+                cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
+                HttpErrno::CBStatus, index);
+        }
         len
     }
 
