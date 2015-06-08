@@ -53,35 +53,11 @@ macro_rules! callback(
     );
 );
 
-macro_rules! start_state(
-    ($parser:ident) => (
-        if $parser.tp == HttpParserType::Request {
-            State::StartReq
-        } else {
-            State::StartRes
-        }
-    );
-);
-
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
         if $parser.strict && $cond {
             $parser.errno = Option::Some(HttpErrno::Strict);
             return $idx;
-        }
-    );
-);
-
-macro_rules! new_message(
-    ($parser:ident) => (
-        if $parser.strict {
-            if $parser.http_should_keep_alive() {
-                start_state!($parser)
-            } else {
-                State::Dead
-            }
-        } else {
-            start_state!($parser)
         }
     );
 );
@@ -1161,7 +1137,7 @@ impl HttpParser {
 
                         if (self.flags & Flags::Trailing.as_u8()) > 0 {
                             // End of a chunked request
-                            self.state = new_message!(self);
+                            self.new_message();
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete, index+1);
                         } else {
@@ -1204,14 +1180,14 @@ impl HttpParser {
 
                         // Exit, The rest of the connect is in a different protocol
                         if self.upgrade {
-                            self.state = new_message!(self);
+                            self.new_message();
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete, index+1);
                             return index+1;
                         }
 
                         if (self.flags & Flags::SkipBody.as_u8()) != 0 {
-                            self.state = new_message!(self);
+                            self.new_message();
                             callback!(self, cb.on_message_complete(self), 
                                       HttpErrno::CBMessageComplete, index+1);
                         } else if (self.flags & Flags::Chunked.as_u8()) != 0 {
@@ -1220,7 +1196,7 @@ impl HttpParser {
                         } else {
                             if self.content_length == 0 {
                                 // Content-Length header given but zero: Content-Length: 0\r\n
-                                self.state = new_message!(self);
+                                self.new_message();
                                 callback!(self, cb.on_message_complete(self), 
                                           HttpErrno::CBMessageComplete, index+1);
                             } else if self.content_length != ULLONG_MAX {
@@ -1230,7 +1206,7 @@ impl HttpParser {
                                 if self.tp == HttpParserType::Request ||
                                     !self.http_message_needs_eof() {
                                     // Assume content-length 0 - read the next
-                                    self.state = new_message!(self);
+                                    self.new_message();
                                     callback!(self, cb.on_message_complete(self), 
                                               HttpErrno::CBMessageComplete, index+1);
                                 } else {
@@ -1281,7 +1257,7 @@ impl HttpParser {
                         index = len - 1;
                     },
                     State::MessageDone => {
-                        self.state = new_message!(self);
+                        self.new_message();
                         callback!(self, cb.on_message_complete(self), 
                                   HttpErrno::CBMessageComplete, index+1);
                     },
@@ -1605,4 +1581,16 @@ impl HttpParser {
         !self.http_message_needs_eof()
     }
 
+    fn new_message(&mut self) {
+        let new_state = if self.tp == HttpParserType::Request { State::StartReq } else { State::StartRes };
+        self.state = if self.strict {
+                        if self.http_should_keep_alive() {
+                            new_state
+                        } else {
+                            State::Dead
+                        }
+                    } else {
+                        new_state
+                    };
+    }
 }
