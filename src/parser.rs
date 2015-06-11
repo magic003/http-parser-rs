@@ -85,57 +85,6 @@ const CHUNKED : &'static str = "chunked";
 const KEEP_ALIVE : &'static str = "keep-alive";
 const CLOSE : &'static str = "close";
 
-static TOKEN : &'static [Option<u8>; 256] = &[
-    //   0 nul      1 soh       2 stx       3 etx      4 eot        5 enq       6 ack       7 bel   
-         None,       None,     None,        None,       None,       None,        None,      None,       
-    //   8 bs        9 ht      10 nl        11 vt      12 np        13 cr       14 so       15 si    
-         None,       None,     None,        None,       None,       None,        None,      None,       
-    //  16 dle     17 dc1      18 dc2       19 dc3     20 dc4       21 nak      22 syn      23 etb    
-         None,       None,     None,        None,       None,       None,        None,      None,       
-    //  24 can     25 em       26 sub       27 esc     28 fs        29 gs       30 rs       31 us    
-         None,       None,     None,        None,       None,       None,        None,      None,       
-    //  32 sp      33   !      34  "        35  #      36   $       37  %       38  &       39   '    
-         None, Some(b'!'),     None,  Some(b'#'), Some(b'$'),  Some(b'%'), Some(b'&'), Some(b'\''),      
-    //  40  (      41  )       42  *        43  +      44  ,        45  -       46  .       47  /    
-         None,     None, Some(b'*'),  Some(b'+'),      None,  Some(b'-'), Some(b'.'),       None,       
-    //  48  0      49  1       50  2        51  3      52  4        53  5       54  6       55  7    
-       Some(b'0'), Some(b'1'), Some(b'2'), Some(b'3'), Some(b'4'), Some(b'5'), Some(b'6'), Some(b'7'),      
-    //  56  8      57  9       58  :        59  ;      60  <        61  =       62  >       63  ?    
-       Some(b'8'), Some(b'9'), None,        None,      None,        None,       None,       None,       
-    //  64  @      65  A       66  B        67  C      68  D        69  E       70  F       71  G    
-        None, Some(b'a'), Some(b'b'), Some(b'c'), Some(b'd'), Some(b'e'), Some(b'f'), Some(b'g'),      
-    //  72  H      73  I       74  J        75  K      76  L        77  M       78  N       79  O    
-       Some(b'h'), Some(b'i'), Some(b'j'), Some(b'k'), Some(b'l'), Some(b'm'), Some(b'n'), Some(b'o'),      
-    //  80  P      81  Q       82  R        83  S      84  T        85  U       86  V       87  W    
-       Some(b'p'), Some(b'q'), Some(b'r'), Some(b's'), Some(b't'), Some(b'u'), Some(b'v'), Some(b'w'),      
-    //  88  X      89  Y       90  Z        91  [      92  \        93  ]       94  ^       95  _    
-       Some(b'x'), Some(b'y'), Some(b'z'),  None,      None,        None,      Some(b'^'), Some(b'_'),      
-    //  96  `      97  a       98  b        99  c      100  d       101  e      102  f      103  g    
-       Some(b'`'), Some(b'a'), Some(b'b'),  Some(b'c'), Some(b'd'), Some(b'e'), Some(b'f'), Some(b'g'),      
-    // 104  h      105  i      106  j       107  k     108  l       109  m      110  n      111  o    
-       Some(b'h'), Some(b'i'), Some(b'j'),  Some(b'k'), Some(b'l'), Some(b'm'), Some(b'n'), Some(b'o'),      
-    // 112  p      113  q      114  r       115  s     116  t       117  u      118  v      119  w    
-       Some(b'p'), Some(b'q'), Some(b'r'),  Some(b's'), Some(b't'), Some(b'u'), Some(b'v'), Some(b'w'),      
-    // 120  x      121  y      122  z       123  {     124  |       125  }      126  ~      127 del    
-       Some(b'x'), Some(b'y'), Some(b'z'),  None,       Some(b'|'), None,       Some(b'~'), None,
-    // no one is token afterwards
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None,       
-        None,       None,     None,        None,       None,       None,        None,      None];
-
 static NORMAL_URL_CHAR : &'static [u8; 32] = &[
     //   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel   
             0    |   0    |   0    |   0    |   0    |   0    |   0    |   0,       
@@ -189,13 +138,18 @@ static UNHEX : &'static [i8; 256] = &[
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1];
 
-// TODO replace some functions by macros
+fn is_normal_header_char(ch: u8) -> bool {
+    ch == b'!' || (ch >= b'#' && ch <= b'\'') /* #, $, %, &, ' */||
+        ch == b'*' || ch == b'+' || ch == b'-' || ch == b'.' ||
+        (ch >= b'0' && ch <= b'9') /* 0-9 */ || (ch >= b'A' && ch <= b'Z') /* A-Z */ ||
+        (ch >= b'^' && ch <= b'z') /* ^, _, `, a-z */ || ch == b'|' || ch == b'~'
+}
 
-fn token(hp : &HttpParser, ch :u8) -> Option<u8> {
-    if hp.strict {
-        TOKEN[ch as usize]
+fn is_header_char(strict: bool, ch: u8) -> bool {
+    if strict {
+        is_normal_header_char(ch)
     } else {
-        if ch == b' ' { Some(b' ') } else { TOKEN[ch as usize] }
+        ch == b' ' || is_normal_header_char(ch)
     }
 }
 
@@ -813,9 +767,7 @@ impl HttpParser {
                             self.state = State::HeadersAlmostDone;
                             retry = true;
                         } else {
-                            let c : Option<u8> = token(self, ch);
-
-                            if c.is_none() {
+                            if !is_header_char(self.strict, ch) {
                                 self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
                                 return index;
                             }
@@ -825,19 +777,18 @@ impl HttpParser {
                             self.index = 0;
                             self.state = State::HeaderField;
 
-                            match c.unwrap() {
-                                b'c' => self.header_state = HeaderState::C,
-                                b'p' => self.header_state = HeaderState::MatchingProxyConnection,
-                                b't' => self.header_state = HeaderState::MatchingTransferEncoding,
-                                b'u' => self.header_state = HeaderState::MatchingUpgrade,
+                            match ch {
+                                b'c' | b'C' => self.header_state = HeaderState::C,
+                                b'p' | b'P' => self.header_state = HeaderState::MatchingProxyConnection,
+                                b't' | b'T' => self.header_state = HeaderState::MatchingTransferEncoding,
+                                b'u' | b'U' => self.header_state = HeaderState::MatchingUpgrade,
                                 _    => self.header_state = HeaderState::General,
                             }
                         }
                     },
                     State::HeaderField => {
-                        let c_opt : Option<u8> = token(self, ch);
-                        if c_opt.is_some() {
-                            let c : u8 = c_opt.unwrap();
+                        if is_header_char(self.strict, ch) {
+                            let c : u8 = lower(ch);
                             match self.header_state {
                                 HeaderState::General => (),
                                 HeaderState::C => {
