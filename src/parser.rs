@@ -127,28 +127,28 @@ fn is_url_char(strict: bool, ch: u8) -> bool {
     is_normal_url_char(ch) || (!strict && ((ch & 0x80) > 0 || ch == 9 || ch == 12))
 }
 
-fn lower(ch : u8) -> u8 {
+fn lower(ch: u8) -> u8 {
     ch | 0x20
 }
 
-fn is_num(ch : u8) -> bool {
+fn is_num(ch: u8) -> bool {
     ch >= b'0' && ch <= b'9'
 }
 
-fn is_alpha(ch : u8) -> bool {
+fn is_alpha(ch: u8) -> bool {
     (ch >= b'a' && ch <= b'z') || (ch >= b'A' && ch <= b'Z')
 }
 
-fn is_alphanum(ch : u8) -> bool {
+fn is_alphanum(ch: u8) -> bool {
     is_num(ch) || is_alpha(ch)
 }
 
-fn is_mark(ch : u8) -> bool {
+fn is_mark(ch: u8) -> bool {
     ch == b'-' || ch == b'_' || ch == b'.' || ch == b'!' || ch == b'~' || 
         ch == b'*' || ch == b'\'' || ch == b'(' || ch == b')'
 }
 
-fn is_userinfo_char(ch : u8) -> bool {
+fn is_userinfo_char(ch: u8) -> bool {
     is_alphanum(ch) || is_mark(ch) || ch == b'%' || 
         ch == b';' || ch == b':' || ch == b'&' || ch == b'=' || 
         ch == b'+' || ch == b'$' || ch == b','
@@ -178,8 +178,8 @@ impl HttpParser {
     }
 
     pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> usize {
-        let mut index : usize = 0;
         let len : usize = data.len();
+        let mut index : usize = 0;
         let mut header_field_mark : Option<usize> = None;
         let mut header_value_mark : Option<usize> = None;
         let mut url_mark : Option<usize> = None;
