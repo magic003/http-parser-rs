@@ -65,7 +65,7 @@ macro_rules! strict_check(
 macro_rules! mark(
     ($mark:ident, $idx:expr) => (
         if $mark.is_none() {
-            $mark = Some($idx);
+            $mark = Option::Some($idx);
         }
     );
 );
@@ -84,24 +84,6 @@ const UPGRADE : &'static str = "upgrade";
 const CHUNKED : &'static str = "chunked";
 const KEEP_ALIVE : &'static str = "keep-alive";
 const CLOSE : &'static str = "close";
-
-static UNHEX : &'static [i8; 256] = &[
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-     0, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,
-    -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1];
 
 fn is_normal_header_char(ch: u8) -> bool {
     ch == b'!' || (ch >= b'#' && ch <= b'\'') /* #, $, %, &, ' */||
@@ -125,6 +107,18 @@ fn is_normal_url_char(ch: u8) -> bool {
 
 fn is_url_char(strict: bool, ch: u8) -> bool {
     is_normal_url_char(ch) || (!strict && ((ch & 0x80) > 0 || ch == 9 || ch == 12))
+}
+
+fn unhex_value(ch: u8) -> Option<i32> {
+    if ch >= b'0' && ch <= b'9' {
+        Option::Some((ch - b'0') as i32)
+    } else if ch >= b'a' && ch <= b'f' {
+        Option::Some((10 + ch - b'a') as i32)
+    } else if ch >= b'A' && ch <= b'F' {
+        Option::Some((10 + ch - b'A') as i32)
+    } else {
+        Option::None
+    }
 }
 
 fn lower(ch: u8) -> u8 {
@@ -180,11 +174,11 @@ impl HttpParser {
     pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> usize {
         let len : usize = data.len();
         let mut index : usize = 0;
-        let mut header_field_mark : Option<usize> = None;
-        let mut header_value_mark : Option<usize> = None;
-        let mut url_mark : Option<usize> = None;
-        let mut body_mark : Option<usize> = None;
-        let mut status_mark : Option<usize> = None;
+        let mut header_field_mark : Option<usize> = Option::None;
+        let mut header_value_mark : Option<usize> = Option::None;
+        let mut url_mark : Option<usize> = Option::None;
+        let mut body_mark : Option<usize> = Option::None;
+        let mut status_mark : Option<usize> = Option::None;
 
         if self.errno.is_some() {
             return 0;
@@ -213,10 +207,10 @@ impl HttpParser {
         }
 
         if self.state == State::HeaderField {
-            header_field_mark = Some(0);
+            header_field_mark = Option::Some(0);
         }
         if self.state == State::HeaderValue {
-            header_value_mark = Some(0);
+            header_value_mark = Option::Some(0);
         }
         match self.state {
             State::ReqPath |
@@ -229,8 +223,8 @@ impl HttpParser {
             State::ReqQueryStringStart |
             State::ReqQueryString |
             State::ReqFragmentStart |
-            State::ReqFragment => url_mark = Some(0),
-            State::ResStatus => status_mark = Some(0),
+            State::ReqFragment => url_mark = Option::Some(0),
+            State::ResStatus => status_mark = Option::Some(0),
             _ => (),
         }
 
@@ -295,7 +289,7 @@ impl HttpParser {
                             }
 
                             self.tp = HttpParserType::Request;
-                            self.method = Some(HttpMethod::Head);
+                            self.method = Option::Some(HttpMethod::Head);
                             self.index = 2;
                             self.state = State::ReqMethod;
                         }
@@ -393,7 +387,7 @@ impl HttpParser {
                                 return index;
                             }
                         } else {
-                            self.status_code = Some((ch - b'0') as u16);
+                            self.status_code = Option::Some((ch - b'0') as u16);
                             self.state = State::ResStatusCode;
                         }
                     },
@@ -412,7 +406,7 @@ impl HttpParser {
                             let mut status_code = self.status_code.unwrap_or(0);
                             status_code *= 10;
                             status_code += (ch - b'0') as u16;
-                            self.status_code = Some(status_code);
+                            self.status_code = Option::Some(status_code);
 
                             if status_code > 999 {
                                 self.errno = Option::Some(HttpErrno::InvalidStatus);
@@ -438,7 +432,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_status(self, &data[status_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBStatus, index+1);
-                                status_mark = None;
+                                status_mark = Option::None;
                             }
                         }
                     },
@@ -457,19 +451,19 @@ impl HttpParser {
                             }
 
                             match ch {
-                                b'C' => self.method = Some(HttpMethod::Connect), // or Copy, Checkout
-                                b'D' => self.method = Some(HttpMethod::Delete),
-                                b'G' => self.method = Some(HttpMethod::Get),
-                                b'H' => self.method = Some(HttpMethod::Head),
-                                b'L' => self.method = Some(HttpMethod::Lock),
-                                b'M' => self.method = Some(HttpMethod::MKCol), // or Move, MKActivity, Merge, MSearch, MKCalendar
-                                b'N' => self.method = Some(HttpMethod::Notify),
-                                b'O' => self.method = Some(HttpMethod::Options),
-                                b'P' => self.method = Some(HttpMethod::Post), // or PropFind|PropPatch|Put|Patch|Purge
-                                b'R' => self.method = Some(HttpMethod::Report),
-                                b'S' => self.method = Some(HttpMethod::Subscribe), // or Search
-                                b'T' => self.method = Some(HttpMethod::Trace),
-                                b'U' => self.method = Some(HttpMethod::Unlock), // or Unsubscribe
+                                b'C' => self.method = Option::Some(HttpMethod::Connect), // or Copy, Checkout
+                                b'D' => self.method = Option::Some(HttpMethod::Delete),
+                                b'G' => self.method = Option::Some(HttpMethod::Get),
+                                b'H' => self.method = Option::Some(HttpMethod::Head),
+                                b'L' => self.method = Option::Some(HttpMethod::Lock),
+                                b'M' => self.method = Option::Some(HttpMethod::MKCol), // or Move, MKActivity, Merge, MSearch, MKCalendar
+                                b'N' => self.method = Option::Some(HttpMethod::Notify),
+                                b'O' => self.method = Option::Some(HttpMethod::Options),
+                                b'P' => self.method = Option::Some(HttpMethod::Post), // or PropFind|PropPatch|Put|Patch|Purge
+                                b'R' => self.method = Option::Some(HttpMethod::Report),
+                                b'S' => self.method = Option::Some(HttpMethod::Subscribe), // or Search
+                                b'T' => self.method = Option::Some(HttpMethod::Trace),
+                                b'U' => self.method = Option::Some(HttpMethod::Unlock), // or Unsubscribe
                                 _ => {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -488,59 +482,59 @@ impl HttpParser {
                             self.state = State::ReqSpacesBeforeUrl;
                         } else if self.index < matcher.len() && ch == (matcher[self.index ..].bytes().next().unwrap()) {
                             ;
-                        } else if self.method == Some(HttpMethod::Connect) {
+                        } else if self.method == Option::Some(HttpMethod::Connect) {
                             if self.index == 1 && ch == b'H' {
-                                self.method = Some(HttpMethod::Checkout);
+                                self.method = Option::Some(HttpMethod::Checkout);
                             } else if self.index == 2 && ch == b'P' {
-                                self.method = Some(HttpMethod::Copy);
+                                self.method = Option::Some(HttpMethod::Copy);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == Some(HttpMethod::MKCol) {
+                        } else if self.method == Option::Some(HttpMethod::MKCol) {
                             if self.index == 1 && ch == b'O' {
-                                self.method = Some(HttpMethod::Move);
+                                self.method = Option::Some(HttpMethod::Move);
                             } else if self.index == 1 && ch == b'E' {
-                                self.method = Some(HttpMethod::Merge);
+                                self.method = Option::Some(HttpMethod::Merge);
                             } else if self.index == 1 && ch == b'-' {
-                                self.method = Some(HttpMethod::MSearch);
+                                self.method = Option::Some(HttpMethod::MSearch);
                             } else if self.index == 2 && ch == b'A' {
-                                self.method = Some(HttpMethod::MKActivity);
+                                self.method = Option::Some(HttpMethod::MKActivity);
                             } else if self.index == 3 && ch == b'A' {
-                                self.method = Some(HttpMethod::MKCalendar);
+                                self.method = Option::Some(HttpMethod::MKCalendar);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.method == Some(HttpMethod::Subscribe) {
+                        } else if self.method == Option::Some(HttpMethod::Subscribe) {
                             if self.index == 1 && ch == b'E' {
-                                self.method = Some(HttpMethod::Search);
+                                self.method = Option::Some(HttpMethod::Search);
                             } else {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 1 && self.method == Some(HttpMethod::Post) {
+                        } else if self.index == 1 && self.method == Option::Some(HttpMethod::Post) {
                            if ch == b'R' {
-                               self.method = Some(HttpMethod::PropFind); // or PropPatch
+                               self.method = Option::Some(HttpMethod::PropFind); // or PropPatch
                            } else if ch == b'U' {
-                               self.method = Some(HttpMethod::Put); // or Purge
+                               self.method = Option::Some(HttpMethod::Put); // or Purge
                            } else if ch == b'A' {
-                               self.method = Some(HttpMethod::Patch);
+                               self.method = Option::Some(HttpMethod::Patch);
                            } else {
                                self.errno = Option::Some(HttpErrno::InvalidMethod);
                                return index;
                            }
                         } else if self.index == 2 {
-                            if self.method == Some(HttpMethod::Put) {
+                            if self.method == Option::Some(HttpMethod::Put) {
                                 if ch == b'R' {
-                                    self.method = Some(HttpMethod::Purge);
+                                    self.method = Option::Some(HttpMethod::Purge);
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
                                 }
-                            } else if self.method == Some(HttpMethod::Unlock) {
+                            } else if self.method == Option::Some(HttpMethod::Unlock) {
                                 if ch == b'S' {
-                                    self.method = Some(HttpMethod::Unsubscribe);
+                                    self.method = Option::Some(HttpMethod::Unsubscribe);
                                 } else {
                                     self.errno = Option::Some(HttpErrno::InvalidMethod);
                                     return index;
@@ -549,8 +543,8 @@ impl HttpParser {
                                 self.errno = Option::Some(HttpErrno::InvalidMethod);
                                 return index;
                             }
-                        } else if self.index == 4 && self.method == Some(HttpMethod::PropFind) && ch == b'P' {
-                            self.method = Some(HttpMethod::PropPatch);
+                        } else if self.index == 4 && self.method == Option::Some(HttpMethod::PropFind) && ch == b'P' {
+                            self.method = Option::Some(HttpMethod::PropPatch);
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidMethod);
                             return index;
@@ -561,7 +555,7 @@ impl HttpParser {
                     State::ReqSpacesBeforeUrl => {
                         if ch != b' ' {
                             mark!(url_mark, index);
-                            if self.method == Some(HttpMethod::Connect) {
+                            if self.method == Option::Some(HttpMethod::Connect) {
                                 self.state = State::ReqServerStart;
                             }
 
@@ -605,7 +599,7 @@ impl HttpParser {
                                     callback!(self,
                                         cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                         HttpErrno::CBUrl, index+1);
-                                    url_mark = None;
+                                    url_mark = Option::None;
                                 }
                             },
                             CR | LF => {
@@ -620,7 +614,7 @@ impl HttpParser {
                                     callback!(self,
                                         cb.on_url(self, &data[url_mark.unwrap() as usize .. index as usize]),
                                         HttpErrno::CBUrl, index+1);
-                                    url_mark = None;
+                                    url_mark = Option::None;
                                 }
                             },
                             _ => {
@@ -852,7 +846,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_header_field(self, &data[header_field_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBHeaderField, index+1);
-                                header_field_mark = None;
+                                header_field_mark = Option::None;
                             }
                         } else {
                             self.errno = Option::Some(HttpErrno::InvalidHeaderToken);
@@ -920,7 +914,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBHeaderValue, index+1);
-                                header_value_mark = None;
+                                header_value_mark = Option::None;
                             }
                         } else if ch == LF {
                             self.state = State::HeaderAlmostDone;
@@ -928,7 +922,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBHeaderValue, index);
-                                header_value_mark = None;
+                                header_value_mark = Option::None;
                             }
                             retry = true;
                         } else {
@@ -1047,7 +1041,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_header_value(self, &data[header_value_mark.unwrap() as usize .. index as usize]),
                                     HttpErrno::CBHeaderValue, index);
-                                header_value_mark = None;
+                                header_value_mark = Option::None;
                             }
                             retry = true;
                         }
@@ -1066,7 +1060,7 @@ impl HttpParser {
                             // Set this here so that on_headers_complete()
                             // callbacks can see it
                             self.upgrade = (self.flags & Flags::Upgrade.as_u8() != 0) ||
-                                self.method == Some(HttpMethod::Connect);
+                                self.method == Option::Some(HttpMethod::Connect);
 
                             // Here we call the headers_complete callback. This is somewhat
                             // different than other callbacks because if the user returns 1, we
@@ -1166,7 +1160,7 @@ impl HttpParser {
                                 callback!(self,
                                     cb.on_body(self, &data[body_mark.unwrap() as usize .. (index + 1) as usize]),
                                     HttpErrno::CBBody, index);
-                                body_mark = None;
+                                body_mark = Option::None;
                             }
                             retry = true;
                         }
@@ -1185,13 +1179,13 @@ impl HttpParser {
                         assert!(self.nread == 1);
                         assert!(self.flags & Flags::Chunked.as_u8() != 0);
 
-                        let unhex_val : i8 = UNHEX[ch as usize];
-                        if unhex_val == -1 {
+                        let unhex_val = unhex_value(ch);
+                        if unhex_val.is_none() {
                             self.errno = Option::Some(HttpErrno::InvalidChunkSize);
                             return index;
                         }
 
-                        self.content_length = unhex_val as u64;
+                        self.content_length = unhex_val.unwrap() as u64;
                         self.state = State::ChunkSize;
                     },
                     State::ChunkSize => {
@@ -1200,8 +1194,8 @@ impl HttpParser {
                         if ch == CR {
                             self.state = State::ChunkSizeAlmostDone;
                         } else {
-                            let unhex_val : i8 = UNHEX[ch as usize];
-                            if unhex_val == -1 {
+                            let unhex_val = unhex_value(ch);
+                            if unhex_val.is_none() {
                                 if ch == b';' || ch == b' ' {
                                     self.state = State::ChunkParameters;
                                 } else {
@@ -1217,7 +1211,7 @@ impl HttpParser {
 
                                 let mut t : u64 = self.content_length;
                                 t *= 16;
-                                t += unhex_val as u64;
+                                t += unhex_val.unwrap() as u64;
 
                                 self.content_length = t;
                             }
@@ -1270,7 +1264,7 @@ impl HttpParser {
                             callback!(self,
                                 cb.on_body(self, &data[body_mark.unwrap() as usize .. index as usize]),
                                 HttpErrno::CBBody, index+1);
-                            body_mark = None;
+                            body_mark = Option::None;
                         }
                     },
                     State::ChunkDataDone => {
