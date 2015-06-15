@@ -74,6 +74,12 @@ pub enum State {
     MessageDone
 }
 
+impl State {
+    pub fn is_header_state(self) -> bool {
+        self <= State::HeadersDone
+    }
+}
+
 pub enum HeaderState {
     General,
     C,

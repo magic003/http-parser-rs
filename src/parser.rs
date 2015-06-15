@@ -70,12 +70,6 @@ macro_rules! mark(
     );
 );
 
-macro_rules! in_header_state(
-    ($state:expr) => (
-        $state <= State::HeadersDone
-    );
-);
-
 const HTTP_MAX_HEADER_SIZE: usize = 80*1024;
 const ULLONG_MAX: u64 = u64::MAX;
 
@@ -236,7 +230,7 @@ impl HttpParser {
 
         while index < len {
             let ch = data[index];
-            if in_header_state!(self.state) {
+            if self.state.is_header_state() {
                 self.nread += 1;
 
                 // Comments from http_parser.c:
