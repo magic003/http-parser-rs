@@ -76,20 +76,20 @@ macro_rules! in_header_state(
     );
 );
 
-const HTTP_MAX_HEADER_SIZE : usize = 80*1024;
-const ULLONG_MAX : u64 = u64::MAX;
+const HTTP_MAX_HEADER_SIZE: usize = 80*1024;
+const ULLONG_MAX: u64 = u64::MAX;
 
-const CR : u8 = b'\r';
-const LF : u8 = b'\n';
+const CR: u8 = b'\r';
+const LF: u8 = b'\n';
 
-const PROXY_CONNECTION : &'static str = "proxy-connection";
-const CONNECTION : &'static str = "connection";
-const CONTENT_LENGTH : &'static str = "content-length";
-const TRANSFER_ENCODING : &'static str = "transfer-encoding";
-const UPGRADE : &'static str = "upgrade";
-const CHUNKED : &'static str = "chunked";
-const KEEP_ALIVE : &'static str = "keep-alive";
-const CLOSE : &'static str = "close";
+const PROXY_CONNECTION: &'static str = "proxy-connection";
+const CONNECTION: &'static str = "connection";
+const CONTENT_LENGTH: &'static str = "content-length";
+const TRANSFER_ENCODING: &'static str = "transfer-encoding";
+const UPGRADE: &'static str = "upgrade";
+const CHUNKED: &'static str = "chunked";
+const KEEP_ALIVE: &'static str = "keep-alive";
+const CLOSE: &'static str = "close";
 
 fn is_normal_header_char(ch: u8) -> bool {
     ch == b'!' || (ch >= b'#' && ch <= b'\'') /* #, $, %, &, ' */||
@@ -155,36 +155,36 @@ fn is_userinfo_char(ch: u8) -> bool {
 }
 
 impl HttpParser {
-    pub fn new(tp : HttpParserType) -> HttpParser {
+    pub fn new(tp: HttpParserType) -> HttpParser {
         HttpParser { 
-            tp : tp,  
-            state : match tp {
+            tp: tp,  
+            state: match tp {
                         HttpParserType::Request     => State::StartReq,
                         HttpParserType::Response    => State::StartRes,
                         HttpParserType::Both        => State::StartReqOrRes,
                     },
-            header_state : HeaderState::General,
-            flags : 0,
-            index : 0,
-            nread : 0,
+            header_state: HeaderState::General,
+            flags: 0,
+            index: 0,
+            nread: 0,
             content_length: ULLONG_MAX,
             http_version: HttpVersion { major: 1, minor: 0 },
-            errno : Option::None,
-            status_code : Option::None,
-            method : Option::None,
-            upgrade : false,
+            errno: Option::None,
+            status_code: Option::None,
+            method: Option::None,
+            upgrade: false,
             strict: true,
         }
     }
 
-    pub fn execute<T: HttpParserCallback>(&mut self, cb : &mut T, data : &[u8]) -> usize {
-        let len : usize = data.len();
-        let mut index : usize = 0;
-        let mut header_field_mark : Option<usize> = Option::None;
-        let mut header_value_mark : Option<usize> = Option::None;
-        let mut url_mark : Option<usize> = Option::None;
-        let mut body_mark : Option<usize> = Option::None;
-        let mut status_mark : Option<usize> = Option::None;
+    pub fn execute<T: HttpParserCallback>(&mut self, cb: &mut T, data: &[u8]) -> usize {
+        let len: usize = data.len();
+        let mut index: usize = 0;
+        let mut header_field_mark: Option<usize> = Option::None;
+        let mut header_value_mark: Option<usize> = Option::None;
+        let mut url_mark: Option<usize> = Option::None;
+        let mut body_mark: Option<usize> = Option::None;
+        let mut status_mark: Option<usize> = Option::None;
 
         if self.errno.is_some() {
             return 0;
@@ -273,8 +273,7 @@ impl HttpParser {
 
                             if ch == b'H' {
                                 self.state = State::ResOrRespH;
-                                callback!(self, cb.on_message_begin(self),
-                                    HttpErrno::CBMessageBegin, index+1);
+                                callback!(self, cb.on_message_begin(self), HttpErrno::CBMessageBegin, index+1);
                             } else {
                                 self.tp = HttpParserType::Request;
                                 self.state = State::StartReq;
@@ -311,8 +310,7 @@ impl HttpParser {
                             },
                         }
                         
-                        callback!(self, cb.on_message_begin(self), 
-                                  HttpErrno::CBMessageBegin, index+1);
+                        callback!(self, cb.on_message_begin(self), HttpErrno::CBMessageBegin, index+1);
                     },
                     State::ResH => {
                         strict_check!(self, ch != b'T', index);                       
@@ -873,7 +871,7 @@ impl HttpParser {
                         self.state = State::HeaderValue;
                         self.index = 0;
                         
-                        let c : u8 = lower(ch);
+                        let c: u8 = lower(ch);
 
                         match self.header_state {
                             HeaderState::Upgrade => {
@@ -929,7 +927,7 @@ impl HttpParser {
                             }
                             retry = true;
                         } else {
-                            let c : u8 = lower(ch);
+                            let c: u8 = lower(ch);
 
                             match self.header_state {
                                 HeaderState::General => (),
@@ -950,7 +948,7 @@ impl HttpParser {
                                             return index;
                                         }
 
-                                        let mut t : u64 = self.content_length;
+                                        let mut t: u64 = self.content_length;
                                         t *= 10;
                                         t += (ch - b'0') as u64;
 
@@ -962,7 +960,7 @@ impl HttpParser {
                                     self.index += 1;
                                     if self.index >= CHUNKED.len() ||
                                         c != (CHUNKED[self.index ..].bytes().next().unwrap()) {
-                                            self.header_state = HeaderState::General;
+                                        self.header_state = HeaderState::General;
                                     } else if self.index == CHUNKED.len()-1 {
                                         self.header_state = HeaderState::TransferEncodingChunked;
                                     }
@@ -972,7 +970,7 @@ impl HttpParser {
                                     self.index += 1;
                                     if self.index >= KEEP_ALIVE.len() ||
                                         c != (KEEP_ALIVE[self.index ..].bytes().next().unwrap()) {
-                                            self.header_state = HeaderState::General;
+                                        self.header_state = HeaderState::General;
                                     } else if self.index == KEEP_ALIVE.len()-1 {
                                         self.header_state = HeaderState::ConnectionKeepAlive;
                                     }
@@ -982,7 +980,7 @@ impl HttpParser {
                                     self.index += 1;
                                     if self.index >= CLOSE.len() ||
                                         c != (CLOSE[self.index ..].bytes().next().unwrap()) {
-                                            self.header_state = HeaderState::General;
+                                        self.header_state = HeaderState::General;
                                     } else if self.index == CLOSE.len()-1 {
                                         self.header_state = HeaderState::ConnectionClose;
                                     }
@@ -1003,7 +1001,6 @@ impl HttpParser {
                     },
                     State::HeaderAlmostDone => {
                         strict_check!(self, ch != LF, index);
-
                         self.state = State::HeaderValueLws;
                     },
                     State::HeaderValueLws => {
@@ -1123,7 +1120,7 @@ impl HttpParser {
                         }
                     },
                     State::BodyIdentity => {
-                        let to_read : usize = cmp::min(self.content_length,
+                        let to_read: usize = cmp::min(self.content_length,
                                                     (len - index) as u64) as usize;
                         assert!(self.content_length != 0 &&
                                 self.content_length != ULLONG_MAX);
@@ -1189,7 +1186,7 @@ impl HttpParser {
                                     return index;
                                 }
 
-                                let mut t : u64 = self.content_length;
+                                let mut t: u64 = self.content_length;
                                 t *= 16;
                                 t += unhex_val.unwrap() as u64;
 
@@ -1218,7 +1215,7 @@ impl HttpParser {
                         }
                     },
                     State::ChunkData => {
-                        let to_read : usize = cmp::min(self.content_length,
+                        let to_read: usize = cmp::min(self.content_length,
                                                          (len - index) as u64) as usize;
                         assert!(self.flags & Flags::Chunked.as_u8() != 0);
                         assert!(self.content_length != 0 &&
@@ -1302,7 +1299,7 @@ impl HttpParser {
         self.state == State::MessageDone
     }
 
-    pub fn pause(&mut self, pause : bool) {
+    pub fn pause(&mut self, pause: bool) {
         if self.errno.is_none() || self.errno == Option::Some(HttpErrno::Paused) {
             self.errno = if pause {
                 Option::Some(HttpErrno::Paused)
@@ -1314,8 +1311,24 @@ impl HttpParser {
         }
     }
 
+    pub fn http_should_keep_alive(&self) -> bool {
+        if self.http_version.major > 0 && self.http_version.minor > 0 {
+            // HTTP/1.1
+            if (self.flags & Flags::ConnectionClose.as_u8()) != 0 {
+                return false
+            }
+        } else {
+            // HTTP/1.0 or earlier
+            if (self.flags & Flags::ConnectionKeepAlive.as_u8()) == 0 {
+                return false
+            }
+        }
+
+        !self.http_message_needs_eof()
+    }
+
     // Our URL parser
-    fn parse_url_char(&self, s : State, ch : u8) -> State {
+    fn parse_url_char(&self, s: State, ch: u8) -> State {
          
         if ch == b' ' || ch == b'\r' || ch == b'\n' || (self.strict && (ch == b'\t' || ch == b'\x0C')) { // '\x0C' = '\f'
             return State::Dead;
@@ -1441,22 +1454,6 @@ impl HttpParser {
         }
 
         true
-    }
-
-    pub fn http_should_keep_alive(&self) -> bool {
-        if self.http_version.major > 0 && self.http_version.minor > 0 {
-            // HTTP/1.1
-            if (self.flags & Flags::ConnectionClose.as_u8()) != 0 {
-                return false
-            }
-        } else {
-            // HTTP/1.0 or earlier
-            if (self.flags & Flags::ConnectionKeepAlive.as_u8()) == 0 {
-                return false
-            }
-        }
-
-        !self.http_message_needs_eof()
     }
 
     fn new_message(&mut self) {
