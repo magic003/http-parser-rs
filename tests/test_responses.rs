@@ -39,7 +39,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 8,
             headers: vec![
                 [ "Location".to_string(), "http://www.google.com/".to_string() ],
                 [ "Content-Type".to_string(), "text/html; charset=UTF-8".to_string() ],
@@ -88,7 +87,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 5,
             headers: vec![
                 [ "Date".to_string(), "Tue, 04 Aug 2009 07:59:32 GMT".to_string() ],
                 [ "Server".to_string(), "Apache".to_string() ],
@@ -122,7 +120,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 0,
             headers: vec![ ],
             body_size: 0,
             body: "".to_string(),
@@ -144,7 +141,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 0,
             headers: vec![ ],
             body: "".to_string(),
             ..Default::default()
@@ -175,7 +171,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 2,
             headers: vec![
                 [ "Content-Type".to_string(), "text/plain".to_string() ],
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
@@ -204,7 +199,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 2,
             headers: vec![
                 [ "Content-Type".to_string(), "text/html; charset=utf-8".to_string() ],
                 [ "Connection".to_string(), "close".to_string() ],
@@ -233,7 +227,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 4,
             headers: vec![
                 [ "Content-Type".to_string(), "text/html; charset=UTF-8".to_string() ],
                 [ "Content-Length".to_string(), "11".to_string() ],
@@ -262,7 +255,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 4,
             headers: vec![
                 [ "Server".to_string(), "DCLK-AdSvr".to_string() ],
                 [ "Content-Type".to_string(), "text/xml".to_string() ],
@@ -297,7 +289,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 9,
             headers: vec![
                 [ "Date".to_string(), "Thu, 03 Jun 2010 09:56:32 GMT".to_string() ],
                 [ "Server".to_string(), "Apache/2.2.3 (Red Hat)".to_string() ],
@@ -340,7 +331,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 11,
             headers: vec![
                 [ "Date".to_string(), "Tue, 28 Sep 2010 01:14:13 GMT".to_string() ],
                 [ "Server".to_string(), "Apache".to_string() ],
@@ -376,7 +366,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "Date".to_string(), "Fri, 5 Nov 2010 23:07:12 GMT+2".to_string() ],
                 [ "Content-Length".to_string(), "0".to_string() ],
@@ -401,7 +390,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 0,
             headers: vec![
             ],
             body: "".to_string(),
@@ -425,7 +413,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Content-Type".to_string(), "text/plain".to_string() ],
             ],
@@ -449,7 +436,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
@@ -474,7 +460,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Connection".to_string(), "keep-alive".to_string() ],
             ],
@@ -498,7 +483,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 0,
             headers: vec![
             ],
             body_size: 0,
@@ -521,7 +505,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 0,
             headers: vec![
             ],
             body_size: 0,
@@ -545,7 +528,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Connection".to_string(), "close".to_string() ],
             ],
@@ -572,7 +554,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
@@ -605,7 +586,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 7,
             headers: vec![
                 [ "Server".to_string(), "Microsoft-IIS/6.0".to_string() ],
                 [ "X-Powered-By".to_string(), "ASP.NET".to_string() ],
@@ -648,7 +628,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 9,
             headers: vec![
                 [ "Date".to_string(), "Wed, 15 May 2013 17:06:33 GMT".to_string() ],
                 [ "Server".to_string(), "Server".to_string() ],
@@ -680,7 +659,6 @@ fn test_responses() {
                 }
                 v
             },
-            num_headers: 0,
             headers: vec![
             ],
             body: "".to_string(),
@@ -739,7 +717,6 @@ fn test_responses() {
                     }
                     v
             },
-            num_headers: 2,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
                 [ "Content-Type".to_string(), "text/plain".to_string() ],

@@ -25,11 +25,10 @@ pub struct Message {
     pub fragment: String,
     pub query_string: String,
     pub body: String,
-    pub body_size: usize, // maybe not necessary
+    pub body_size: usize,
     pub host: String,
     pub userinfo: String,
     pub port: u16,
-    pub num_headers: i32, // might be able to delete this
     pub last_header_element: LastHeaderType,
     pub headers: Vec<[String; 2]>,
     pub should_keep_alive: bool,
@@ -64,7 +63,6 @@ impl Default for Message {
             host: String::new(),
             userinfo: String::new(),
             port: 0,
-            num_headers: 0,
             last_header_element: LastHeaderType::None,
             headers: vec![],
             should_keep_alive: false,
@@ -126,7 +124,6 @@ impl HttpParserCallback for CallbackRegular {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         if m.last_header_element != LastHeaderType::Field {
-            m.num_headers += 1;
             m.headers.push([String::new(), String::new()]);
         }
         
@@ -328,7 +325,6 @@ impl HttpParserCallback for CallbackPause {
             let m : &mut Message = &mut self.messages[self.num_messages];
 
             if m.last_header_element != LastHeaderType::Field {
-                m.num_headers += 1;
                 m.headers.push([String::new(), String::new()]);
             }
             
@@ -486,7 +482,6 @@ impl HttpParserCallback for CallbackCountBody {
         let m : &mut Message = &mut self.messages[self.num_messages];
 
         if m.last_header_element != LastHeaderType::Field {
-            m.num_headers += 1;
             m.headers.push([String::new(), String::new()]);
         }
         
@@ -644,9 +639,9 @@ pub fn assert_eq_message(actual: &Message, expected: &Message) {
         assert_eq!(actual.body, expected.body);
     }
 
-    assert_eq!(actual.num_headers, expected.num_headers);
+    assert_eq!(actual.headers.len(), expected.headers.len());
 
-    for i in (0..actual.num_headers) {
+    for i in (0..actual.headers.len()) {
         assert_eq!(actual.headers[i as usize][0], expected.headers[i as usize][0]);
         assert_eq!(actual.headers[i as usize][1], expected.headers[i as usize][1]);
     }

@@ -140,7 +140,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "User-Agent".to_string(), "curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1".to_string() ],
                 [ "Host".to_string(), "0.0.0.0=5000".to_string() ],
@@ -176,7 +175,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 8,
             headers: vec![
                 [ "Host".to_string(), "0.0.0.0=5000".to_string() ],
                 [ "User-Agent".to_string(), "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9) Gecko/2008061015 Firefox/3.0".to_string() ],
@@ -210,7 +208,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "aaaaaaaaaaaaa".to_string(), "++++++++++".to_string() ],
             ],
@@ -236,7 +233,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -259,7 +255,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -283,7 +278,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Accept".to_string(), "*/*".to_string() ],
             ],
@@ -311,7 +305,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "conTENT-Length".to_string(), "5".to_string() ]
             ],
@@ -341,7 +334,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ]
             ],
@@ -372,7 +364,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ]
             ],
@@ -405,7 +396,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
                 [ "Vary".to_string(), "*".to_string() ],
@@ -438,7 +428,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Transfer-Encoding".to_string(), "chunked".to_string() ],
             ],
@@ -464,7 +453,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -490,7 +478,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "Host".to_string(), "0.0.0.0:5000".to_string() ],
                 [ "User-Agent".to_string(), "ApacheBench/2.3".to_string() ],
@@ -518,7 +505,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -541,7 +527,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -572,7 +557,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 7,
             upgrade: Some("Hot diggity dogg".to_string()),
             headers: vec![
                 [ "Host".to_string(), "example.com".to_string() ],
@@ -609,7 +593,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 2,
             upgrade: Some("some data\r\nand yet even more data".to_string()),
             headers: vec![
                 [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
@@ -637,7 +620,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -658,7 +640,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -682,7 +663,6 @@ fn test_requests() {
                 v.push(b'*');
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "HOST".to_string(), "239.255.255.250:1900".to_string()],
                 [ "MAN".to_string(), "\"ssdp:discover\"".to_string()],
@@ -713,7 +693,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 5,
             headers: vec![
                 [ "Line1".to_string(), "abc\tdef ghi\t\tjkl  mno \t \tqrs".to_string()],
                 [ "Line2".to_string(), "line2\t".to_string()],
@@ -744,7 +723,6 @@ fn test_requests() {
                 v
             },
             host: "hypnotoad.org".to_string(),
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -769,7 +747,6 @@ fn test_requests() {
             },
             host: "hypnotoad.org".to_string(),
             port: 1234,
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -794,7 +771,6 @@ fn test_requests() {
             },
             host: "hypnotoad.org".to_string(),
             port: 1234,
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -822,7 +798,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 4,
             headers: vec![
                 [ "Host".to_string(), "www.example.com".to_string() ],
                 [ "Content-Type".to_string(), "application/example".to_string() ],
@@ -853,7 +828,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 2,
             upgrade: Some("".to_string()),
             headers: vec![
                 [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
@@ -883,7 +857,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Host".to_string(), "github.com".to_string() ],
             ],
@@ -912,7 +885,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 2,
             upgrade: Some(String::new()),
             headers: vec![
                 [ "User-agent".to_string(), "Mozilla/1.1N".to_string() ],
@@ -941,7 +913,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 3,
             headers: vec![
                 [ "Host".to_string(), "www.example.com".to_string() ],
                 [ "Content-Type".to_string(), "application/x-www-form-urlencoded".to_string() ],
@@ -971,7 +942,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 4,
             headers: vec![
                 [ "Host".to_string(), "www.example.com".to_string() ],
                 [ "Content-Type".to_string(), "application/x-www-form-urlencoded".to_string() ],
@@ -1001,7 +971,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Host".to_string(), "www.example.com".to_string() ],
             ],
@@ -1026,7 +995,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 1,
             headers: vec![
                 [ "Host".to_string(), "www.example.com".to_string() ],
             ],
@@ -1055,7 +1023,6 @@ fn test_requests() {
             host: "hypnotoad.org".to_string(),
             userinfo: "a%12:b!&*$".to_string(),
             port: 1234,
-            num_headers: 0,
             body: "".to_string(),
             ..Default::default()
         },
@@ -1081,7 +1048,6 @@ fn test_requests() {
                 v.push(b'/');
                 v
             },
-            num_headers: 5,
             headers: vec![
                 [ "Line1".to_string(), "abc\tdef ghi\t\tjkl mno \t \tqrs".to_string() ],
                 [ "Line2".to_string(), "line2\t".to_string() ],
@@ -1119,7 +1085,6 @@ fn test_requests() {
                 }
                 v
             },
-            num_headers: 7,
             upgrade: Some("Hot diggity dogg".to_string()),
             headers: vec![
                 [ "Host".to_string(), "example.com".to_string() ],
