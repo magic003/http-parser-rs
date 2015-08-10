@@ -2,7 +2,7 @@
 
 name = "http_parser"
 description = "Http request/response parser for rust"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Minjie Zha <minjiezha@gmail.com>"]
 license = "MIT"
 

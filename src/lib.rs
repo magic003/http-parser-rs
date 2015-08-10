@@ -10,7 +10,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! http_parser = "0.0.1"
+//! http_parser = "0.0.2"
 //! ```
 //!
 //! # Usage
