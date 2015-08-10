@@ -6,6 +6,10 @@ version = "0.0.1"
 authors = ["Minjie Zha <minjiezha@gmail.com>"]
 license = "MIT"
 
+documentation = "http://magic003.github.io/http-parser-rs/doc/http_parser/"
+homepage = "http://magic003.github.io/http-parser-rs/doc/http_parser/"
+repository = "https://github.com/magic003/http-parser-rs"
+
 [profile.dev]
 opt-level = 0
 debug = true
