@@ -1,8 +1,11 @@
 use std::fmt;
 
+/// HTTP protocol version.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct HttpVersion {
+    /// Major version
     pub major: u8,
+    /// Minor version
     pub minor: u8,
 }
 

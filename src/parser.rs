@@ -1,3 +1,5 @@
+//! The parser that parse requests and responses.
+
 use std::u64;
 use std::cmp;
 
@@ -8,22 +10,58 @@ use http_method::HttpMethod;
 use http_version::HttpVersion;
 use callback::{HttpParserCallback, ParseAction};
 
+/// `HttpParserType` is a type specifies whether the parser is going to parse a HTTP request,
+/// response or both.
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum HttpParserType {
+    /// Parse request
     Request,
+    /// Parse response
     Response,
+    /// Parse both
     Both
 }
 
+/// The HTTP parser that parses requests and responses.
+///
+/// # Example
+///
+/// ```
+/// # use http_parser::*;
+/// #
+/// struct Callback;
+///
+/// impl HttpParserCallback for Callback {
+///     fn on_message_begin(&mut self, parser: &mut HttpParser) -> CallbackResult {
+///         println!("Message begin");
+///         Ok(ParseAction::None)
+///     }
+///
+///     // Override other functions as you wish
+/// }
+///
+/// let mut parser = HttpParser::new(HttpParserType::Request);
+///
+/// let mut cb = Callback;
+///
+/// let line: &str = "GET / HTTP/1.1\r\n";
+/// parser.execute(&mut cb, line.as_bytes());
+/// ```
 pub struct HttpParser {
+    /// HTTP version of the request or response
     pub http_version: HttpVersion,
+    /// Error number of there is an error in parsing
     pub errno: Option<HttpErrno>,
+    /// Status code of the response
     pub status_code: Option<u16>,          // response only
+    /// HTTP method of the request
     pub method: Option<HttpMethod>,        // request only
 
+    /// whether the protocol is upgraded
     pub upgrade: bool,
     
     // TODO make it as a constructor parameter?
+    /// whether using strict parsing mode
     pub strict: bool,      // parsing using strict rules
 
     // private
@@ -39,6 +77,7 @@ pub struct HttpParser {
 
 //============== End of public interfaces ===================
 
+/// A macro that makes callback calls and check the returned value
 macro_rules! callback(
     ($parser:ident, $cb:expr, $err:expr, $idx:expr) => (
        assert!($parser.errno.is_none());
@@ -53,6 +92,7 @@ macro_rules! callback(
     );
 );
 
+/// A macro that returns parsing error if it is in strict mode and the condition is not met.
 macro_rules! strict_check(
     ($parser:ident, $cond:expr, $idx:expr) => (
         if $parser.strict && $cond {
@@ -62,6 +102,7 @@ macro_rules! strict_check(
     );
 );
 
+/// A macro that marks the index for any marker
 macro_rules! mark(
     ($mark:ident, $idx:expr) => (
         if $mark.is_none() {
@@ -149,6 +190,14 @@ fn is_userinfo_char(ch: u8) -> bool {
 }
 
 impl HttpParser {
+    /// Creates a parser of the specified type.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http_parser::*;
+    /// let mut parser = HttpParser::new(HttpParserType::Request);
+    /// ```
     pub fn new(tp: HttpParserType) -> HttpParser {
         HttpParser { 
             tp: tp,  
@@ -171,6 +220,29 @@ impl HttpParser {
         }
     }
 
+    /// Parses the HTTP requests or responses, specified in `data` as an array of bytes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http_parser::*;
+    /// # struct Callback;
+    /// #
+    /// # impl HttpParserCallback for Callback {
+    /// #     fn on_message_begin(&mut self, parser: &mut HttpParser) -> CallbackResult {
+    /// #         println!("Message begin");
+    /// #         Ok(ParseAction::None)
+    /// #     }
+    /// #
+    /// #     // Override other functions as you wish
+    /// # }
+    /// let mut parser = HttpParser::new(HttpParserType::Request);
+    ///
+    /// let mut cb = Callback;
+    ///
+    /// let line: &str = "GET / HTTP/1.1\r\n";
+    /// parser.execute(&mut cb, line.as_bytes());
+    /// ```
     pub fn execute<T: HttpParserCallback>(&mut self, cb: &mut T, data: &[u8]) -> usize {
         let len: usize = data.len();
         let mut index: usize = 0;
@@ -1289,10 +1361,12 @@ impl HttpParser {
         len
     }
 
+    /// Returns true if the HTTP body is final.
     pub fn http_body_is_final(&self) -> bool {
         self.state == State::MessageDone
     }
 
+    /// Pauses the parser.
     pub fn pause(&mut self, pause: bool) {
         if self.errno.is_none() || self.errno == Option::Some(HttpErrno::Paused) {
             self.errno = if pause {
@@ -1305,6 +1379,7 @@ impl HttpParser {
         }
     }
 
+    /// Returns true if it needs to keep alive.
     pub fn http_should_keep_alive(&self) -> bool {
         if self.http_version.major > 0 && self.http_version.minor > 0 {
             // HTTP/1.1

@@ -1,3 +1,4 @@
+/// `HttpMethod` defines supported HTTP methods.
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum HttpMethod {
     Delete,
