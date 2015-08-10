@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["ParseAction","`ParseAction` defines the potential actions that could be returned by any callback function. The parser uses it to determine consequent behavior."]],"trait":[["HttpParserCallback","It defines the callback functions that would be called by parser."]],"type":[["CallbackResult","Result of a callback function."]]});

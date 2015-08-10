@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source to the Rust file `src/error.rs`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang">
+
+    <title>error.rs.html -- source</title>
+
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press 'S' to search, '?' for more options..."
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content source"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+</pre><pre class='rust '>
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>fmt</span>;
+
+<span class='doccomment'>/// `HttpErrno` defines the encountered error during parsing.</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Copy</span>, <span class='ident'>Clone</span>)]</span>
+<span class='kw'>pub</span> <span class='kw'>enum</span> <span class='ident'>HttpErrno</span> {
+    <span class='comment'>// Callback-related errors</span>
+    <span class='doccomment'>/// Error happened in message begin callback</span>
+    <span class='ident'>CBMessageBegin</span>,
+    <span class='doccomment'>/// Error happened in url callback</span>
+    <span class='ident'>CBUrl</span>,
+    <span class='doccomment'>/// Error happened in header field callback</span>
+    <span class='ident'>CBHeaderField</span>,
+    <span class='doccomment'>/// Error happened in header value callback</span>
+    <span class='ident'>CBHeaderValue</span>,
+    <span class='doccomment'>/// Error happened in headers complete callback</span>
+    <span class='ident'>CBHeadersComplete</span>,
+    <span class='doccomment'>/// Error happened in body callback</span>
+    <span class='ident'>CBBody</span>,
+    <span class='doccomment'>/// Error happened in message complete callback</span>
+    <span class='ident'>CBMessageComplete</span>,
+    <span class='doccomment'>/// Error happened in status callback</span>
+    <span class='ident'>CBStatus</span>,
+
+    <span class='comment'>// Parsing-related errors</span>
+    <span class='doccomment'>/// Invalid EOF state</span>
+    <span class='ident'>InvalidEofState</span>,
+    <span class='doccomment'>/// Header size is overflowed</span>
+    <span class='ident'>HeaderOverflow</span>,
+    <span class='doccomment'>/// Connection is closed</span>
+    <span class='ident'>ClosedConnection</span>,
+    <span class='doccomment'>/// Invalid HTTP version</span>
+    <span class='ident'>InvalidVersion</span>,
+    <span class='doccomment'>/// Invalid HTTP status</span>
+    <span class='ident'>InvalidStatus</span>,
+    <span class='doccomment'>/// Invalid HTTP method</span>
+    <span class='ident'>InvalidMethod</span>,
+    <span class='doccomment'>/// Invalid URL</span>
+    <span class='ident'>InvalidUrl</span>,
+    <span class='doccomment'>/// Invalid host</span>
+    <span class='ident'>InvalidHost</span>,
+    <span class='doccomment'>/// Invalid port</span>
+    <span class='ident'>InvalidPort</span>,
+    <span class='doccomment'>/// Invalid path</span>
+    <span class='ident'>InvalidPath</span>,
+    <span class='doccomment'>/// Invalid query string</span>
+    <span class='ident'>InvalidQueryString</span>,
+    <span class='doccomment'>/// Invalid fragment</span>
+    <span class='ident'>InvalidFragment</span>,
+    <span class='doccomment'>/// Line feed is expected</span>
+    <span class='ident'>LFExpected</span>,
+    <span class='doccomment'>/// Invalid header token</span>
+    <span class='ident'>InvalidHeaderToken</span>,
+    <span class='doccomment'>/// Invalid content length</span>
+    <span class='ident'>InvalidContentLength</span>,
+    <span class='doccomment'>/// Invalid chunk size</span>
+    <span class='ident'>InvalidChunkSize</span>,
+    <span class='doccomment'>/// Invalid constant</span>
+    <span class='ident'>InvalidConstant</span>,
+    <span class='doccomment'>/// Invalid internal state</span>
+    <span class='ident'>InvalidInternalState</span>,
+    <span class='doccomment'>/// Error happened in strict mode</span>
+    <span class='ident'>Strict</span>,
+    <span class='doccomment'>/// Error happened when the parser is paused</span>
+    <span class='ident'>Paused</span>,
+    <span class='doccomment'>/// Unkown error</span>
+    <span class='ident'>Unknown</span>,
+}
+
+<span class='kw'>impl</span> <span class='ident'>fmt</span>::<span class='ident'>Display</span> <span class='kw'>for</span> <span class='ident'>HttpErrno</span> {
+    <span class='kw'>fn</span> <span class='ident'>fmt</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>f</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>fmt</span>::<span class='ident'>Formatter</span>) <span class='op'>-&gt;</span> <span class='ident'>fmt</span>::<span class='prelude-ty'>Result</span> {
+        <span class='kw'>match</span> <span class='op'>*</span><span class='self'>self</span> {
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBMessageBegin</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_message_begin callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBUrl</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_url callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBHeaderField</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_header_field callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBHeaderValue</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_header_value callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBHeadersComplete</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_headers_complete callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBBody</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_body callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBMessageComplete</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_message_complete callback failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>CBStatus</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;the on_status callback failed&quot;</span>),
+
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidEofState</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;stream ended at an unexpected time&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>HeaderOverflow</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;too many header bytes seen; overflow detected&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>ClosedConnection</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;data received after completed connection: close message&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidVersion</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid HTTP version&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidStatus</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid HTTP status code&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidMethod</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid HTTP method&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidUrl</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid URL&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidHost</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid host&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidPort</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid port&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidPath</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid path&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidQueryString</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid query string&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidFragment</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid fragment&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>LFExpected</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;LF character expected&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidHeaderToken</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid charater in header&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidContentLength</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid character in content-length header&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidChunkSize</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid character in chunk size header&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidConstant</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;invalid constant string&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>InvalidInternalState</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;encountered unexpected internal state&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>Strict</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;strict mode assertion failed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>Paused</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;parser is parsed&quot;</span>),
+            <span class='ident'>HttpErrno</span>::<span class='ident'>Unknown</span> <span class='op'>=&gt;</span> <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>f</span>, <span class='string'>&quot;an unknown error occurred&quot;</span>),
+        }
+    }
+}
+</pre>
+</section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div class="shortcuts">
+            <h1>Keyboard shortcuts</h1>
+            <dl>
+                <dt>?</dt>
+                <dd>Show this help dialog</dd>
+                <dt>S</dt>
+                <dd>Focus the search field</dd>
+                <dt>&larrb;</dt>
+                <dd>Move up in search results</dd>
+                <dt>&rarrb;</dt>
+                <dd>Move down in search results</dd>
+                <dt>&#9166;</dt>
+                <dd>Go to active search result</dd>
+            </dl>
+        </div>
+        <div class="infos">
+            <h1>Search tricks</h1>
+            <p>
+                Prefix searches with a type followed by a colon (e.g.
+                <code>fn:</code>) to restrict the search to a given type.
+            </p>
+            <p>
+                Accepted types are: <code>fn</code>, <code>mod</code>,
+                <code>struct</code>, <code>enum</code>,
+                <code>trait</code>, <code>typedef</code> (or
+                <code>tdef</code>).
+            </p>
+            <p>
+                Search functions by type signature (e.g.
+                <code>vec -> usize</code>)
+            </p>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "http_parser";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../jquery.js"></script>
+    <script src="../../main.js"></script>
+    
+    <script async src="../../search-index.js"></script>
+</body>
+</html>

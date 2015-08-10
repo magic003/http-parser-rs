@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `HttpParser` struct in crate `http_parser`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, HttpParser">
+
+    <title>http_parser::HttpParser - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'><a href='index.html'>http_parser</a></p><script>window.sidebarCurrent = {name: 'HttpParser', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press 'S' to search, '?' for more options..."
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>http_parser</a>::<wbr><a class='struct' href=''>HttpParser</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-256' class='srclink' href='../src/http_parser/parser.rs.html#50-76' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct HttpParser {
+    pub http_version: <a class='struct' href='../http_parser/struct.HttpVersion.html' title='http_parser::HttpVersion'>HttpVersion</a>,
+    pub errno: <a class='enum' href='http://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='enum' href='../http_parser/enum.HttpErrno.html' title='http_parser::HttpErrno'>HttpErrno</a>&gt;,
+    pub status_code: <a class='enum' href='http://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>&gt;,
+    pub method: <a class='enum' href='http://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='enum' href='../http_parser/enum.HttpMethod.html' title='http_parser::HttpMethod'>HttpMethod</a>&gt;,
+    pub upgrade: <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub strict: <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    // some fields omitted
+}</pre><div class='docblock'><p>The HTTP parser that parses requests and responses.</p>
+
+<h1 id="example" class='section-header'><a
+                           href="#example">Example</a></h1><pre class='rust rust-example-rendered'>
+<span class='kw'>struct</span> <span class='ident'>Callback</span>;
+
+<span class='kw'>impl</span> <span class='ident'>HttpParserCallback</span> <span class='kw'>for</span> <span class='ident'>Callback</span> {
+    <span class='kw'>fn</span> <span class='ident'>on_message_begin</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>parser</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>HttpParser</span>) <span class='op'>-&gt;</span> <span class='ident'>CallbackResult</span> {
+        <span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;Message begin&quot;</span>);
+        <span class='prelude-val'>Ok</span>(<span class='ident'>ParseAction</span>::<span class='prelude-val'>None</span>)
+    }
+
+    <span class='comment'>// Override other functions as you wish</span>
+}
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>parser</span> <span class='op'>=</span> <span class='ident'>HttpParser</span>::<span class='ident'>new</span>(<span class='ident'>HttpParserType</span>::<span class='ident'>Request</span>);
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cb</span> <span class='op'>=</span> <span class='ident'>Callback</span>;
+
+<span class='kw'>let</span> <span class='ident'>line</span>: <span class='kw-2'>&amp;</span><span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;GET / HTTP/1.1\r\n&quot;</span>;
+<span class='ident'>parser</span>.<span class='ident'>execute</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>cb</span>, <span class='ident'>line</span>.<span class='ident'>as_bytes</span>());
+</pre>
+</div><h2 class='fields'>Fields</h2>
+<table><tr class='stab '>
+                                  <td id='structfield.http_version'><code>http_version</code></td><td><div class='docblock'><p>HTTP version of the request or response</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.errno'><code>errno</code></td><td><div class='docblock'><p>Error number of there is an error in parsing</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.status_code'><code>status_code</code></td><td><div class='docblock'><p>Status code of the response</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.method'><code>method</code></td><td><div class='docblock'><p>HTTP method of the request</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.upgrade'><code>upgrade</code></td><td><div class='docblock'><p>whether the protocol is upgraded</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.strict'><code>strict</code></td><td><div class='docblock'><p>whether using strict parsing mode</p>
+</div></td></tr></table><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(tp: <a class='enum' href='../http_parser/enum.HttpParserType.html' title='http_parser::HttpParserType'>HttpParserType</a>) -&gt; <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a></code></h4>
+<div class='docblock'><p>Creates a parser of the specified type.</p>
+
+<h1 id="example" class='section-header'><a
+                           href="#example">Example</a></h1><pre class='rust rust-example-rendered'>
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>parser</span> <span class='op'>=</span> <span class='ident'>HttpParser</span>::<span class='ident'>new</span>(<span class='ident'>HttpParserType</span>::<span class='ident'>Request</span>);
+</pre>
+</div><h4 id='method.execute' class='method'><code>fn <a href='#method.execute' class='fnname'>execute</a>&lt;T: <a class='trait' href='../http_parser/trait.HttpParserCallback.html' title='http_parser::HttpParserCallback'>HttpParserCallback</a>&gt;(&amp;mut self, cb: &amp;mut T, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Parses the HTTP requests or responses, specified in <code>data</code> as an array of bytes.</p>
+
+<h1 id="example" class='section-header'><a
+                           href="#example">Example</a></h1><pre class='rust rust-example-rendered'>
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>parser</span> <span class='op'>=</span> <span class='ident'>HttpParser</span>::<span class='ident'>new</span>(<span class='ident'>HttpParserType</span>::<span class='ident'>Request</span>);
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cb</span> <span class='op'>=</span> <span class='ident'>Callback</span>;
+
+<span class='kw'>let</span> <span class='ident'>line</span>: <span class='kw-2'>&amp;</span><span class='ident'>str</span> <span class='op'>=</span> <span class='string'>&quot;GET / HTTP/1.1\r\n&quot;</span>;
+<span class='ident'>parser</span>.<span class='ident'>execute</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>cb</span>, <span class='ident'>line</span>.<span class='ident'>as_bytes</span>());
+</pre>
+</div><h4 id='method.http_body_is_final' class='method'><code>fn <a href='#method.http_body_is_final' class='fnname'>http_body_is_final</a>(&amp;self) -&gt; <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns true if the HTTP body is final.</p>
+</div><h4 id='method.pause' class='method'><code>fn <a href='#method.pause' class='fnname'>pause</a>(&amp;mut self, pause: <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>)</code></h4>
+<div class='docblock'><p>Pauses the parser.</p>
+</div><h4 id='method.http_should_keep_alive' class='method'><code>fn <a href='#method.http_should_keep_alive' class='fnname'>http_should_keep_alive</a>(&amp;self) -&gt; <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns true if it needs to keep alive.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div class="shortcuts">
+            <h1>Keyboard shortcuts</h1>
+            <dl>
+                <dt>?</dt>
+                <dd>Show this help dialog</dd>
+                <dt>S</dt>
+                <dd>Focus the search field</dd>
+                <dt>&larrb;</dt>
+                <dd>Move up in search results</dd>
+                <dt>&rarrb;</dt>
+                <dd>Move down in search results</dd>
+                <dt>&#9166;</dt>
+                <dd>Go to active search result</dd>
+            </dl>
+        </div>
+        <div class="infos">
+            <h1>Search tricks</h1>
+            <p>
+                Prefix searches with a type followed by a colon (e.g.
+                <code>fn:</code>) to restrict the search to a given type.
+            </p>
+            <p>
+                Accepted types are: <code>fn</code>, <code>mod</code>,
+                <code>struct</code>, <code>enum</code>,
+                <code>trait</code>, <code>typedef</code> (or
+                <code>tdef</code>).
+            </p>
+            <p>
+                Search functions by type signature (e.g.
+                <code>vec -> usize</code>)
+            </p>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "http_parser";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["HttpParserType","`HttpParserType` is a type specifies whether the parser is going to parse a HTTP request, response or both."]],"struct":[["HttpParser","The HTTP parser that parses requests and responses."]]});

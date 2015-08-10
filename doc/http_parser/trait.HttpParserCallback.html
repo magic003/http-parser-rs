@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `HttpParserCallback` trait in crate `http_parser`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, HttpParserCallback">
+
+    <title>http_parser::HttpParserCallback - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'><a href='index.html'>http_parser</a></p><script>window.sidebarCurrent = {name: 'HttpParserCallback', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press 'S' to search, '?' for more options..."
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content trait">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>http_parser</a>::<wbr><a class='trait' href=''>HttpParserCallback</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-13859' class='srclink' href='../src/http_parser/callback.rs.html#36-84' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait HttpParserCallback {
+    fn <a href='#method.on_message_begin' class='fnname'>on_message_begin</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_url' class='fnname'>on_url</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_status' class='fnname'>on_status</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_header_field' class='fnname'>on_header_field</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_header_value' class='fnname'>on_header_value</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_headers_complete' class='fnname'>on_headers_complete</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_body' class='fnname'>on_body</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+    fn <a href='#method.on_message_complete' class='fnname'>on_message_complete</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a> { ... }
+}</pre><div class='docblock'><p>It defines the callback functions that would be called by parser.</p>
+
+<h1 id="example" class='section-header'><a
+                           href="#example">Example</a></h1><pre class='rust rust-example-rendered'>
+<span class='kw'>struct</span> <span class='ident'>Callback</span>;
+
+<span class='kw'>impl</span> <span class='ident'>HttpParserCallback</span> <span class='kw'>for</span> <span class='ident'>Callback</span> {
+    <span class='kw'>fn</span> <span class='ident'>on_message_begin</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>parser</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>HttpParser</span>) <span class='op'>-&gt;</span> <span class='ident'>CallbackResult</span> {
+        <span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;Message begin&quot;</span>);
+        <span class='prelude-val'>Ok</span>(<span class='ident'>ParseAction</span>::<span class='prelude-val'>None</span>)
+    }
+
+    <span class='comment'>// Override other functions as you wish</span>
+}
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cb</span> <span class='op'>=</span> <span class='ident'>Callback</span>;
+</pre>
+</div>
+            <h2 id='provided-methods'>Provided Methods</h2>
+            <div class='methods'>
+        <h3 id='method.on_message_begin' class='method stab '><code>fn <a href='#method.on_message_begin' class='fnname'>on_message_begin</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when starting parsing a new HTTP request or response.</p>
+</div><h3 id='method.on_url' class='method stab '><code>fn <a href='#method.on_url' class='fnname'>on_url</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when a URL is parsed.</p>
+</div><h3 id='method.on_status' class='method stab '><code>fn <a href='#method.on_status' class='fnname'>on_status</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when a status is parsed.</p>
+</div><h3 id='method.on_header_field' class='method stab '><code>fn <a href='#method.on_header_field' class='fnname'>on_header_field</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when a header field is parsed.</p>
+</div><h3 id='method.on_header_value' class='method stab '><code>fn <a href='#method.on_header_value' class='fnname'>on_header_value</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when a header value is parsed.</p>
+</div><h3 id='method.on_headers_complete' class='method stab '><code>fn <a href='#method.on_headers_complete' class='fnname'>on_headers_complete</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when all headers are parsed.</p>
+</div><h3 id='method.on_body' class='method stab '><code>fn <a href='#method.on_body' class='fnname'>on_body</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>, data: <a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='http://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when the body is parsed.</p>
+</div><h3 id='method.on_message_complete' class='method stab '><code>fn <a href='#method.on_message_complete' class='fnname'>on_message_complete</a>(&amp;mut self, parser: &amp;mut <a class='struct' href='../http_parser/struct.HttpParser.html' title='http_parser::HttpParser'>HttpParser</a>) -&gt; <a class='type' href='../http_parser/type.CallbackResult.html' title='http_parser::CallbackResult'>CallbackResult</a></code></h3><div class='docblock'><p>Function called when finishing parsing a HTTP request or response.</p>
+</div></div>
+        <h2 id='implementors'>Implementors</h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript" async
+                              src="../implementors/http_parser/trait.HttpParserCallback.js">
+                      </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div class="shortcuts">
+            <h1>Keyboard shortcuts</h1>
+            <dl>
+                <dt>?</dt>
+                <dd>Show this help dialog</dd>
+                <dt>S</dt>
+                <dd>Focus the search field</dd>
+                <dt>&larrb;</dt>
+                <dd>Move up in search results</dd>
+                <dt>&rarrb;</dt>
+                <dd>Move down in search results</dd>
+                <dt>&#9166;</dt>
+                <dd>Go to active search result</dd>
+            </dl>
+        </div>
+        <div class="infos">
+            <h1>Search tricks</h1>
+            <p>
+                Prefix searches with a type followed by a colon (e.g.
+                <code>fn:</code>) to restrict the search to a given type.
+            </p>
+            <p>
+                Accepted types are: <code>fn</code>, <code>mod</code>,
+                <code>struct</code>, <code>enum</code>,
+                <code>trait</code>, <code>typedef</code> (or
+                <code>tdef</code>).
+            </p>
+            <p>
+                Search functions by type signature (e.g.
+                <code>vec -> usize</code>)
+            </p>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "http_parser";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>
